@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Mixusfield — UI Library Documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet"/>
+<style>
+/* ============================
+   ROOT & RESET
+   ============================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:        #080b10;
+  --bg2:       #0d1117;
+  --bg3:       #111722;
+  --panel:     #141b26;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(99,179,255,0.18);
+  --accent:    #3b82f6;
+  --accent2:   #60a5fa;
+  --accent3:   #93c5fd;
+  --gold:      #f59e0b;
+  --green:     #10b981;
+  --red:       #ef4444;
+  --purple:    #a78bfa;
+  --text:      #e2e8f0;
+  --text2:     #94a3b8;
+  --text3:     #475569;
+  --glow:      0 0 40px rgba(59,130,246,0.15);
+  --glow2:     0 0 20px rgba(59,130,246,0.25);
+  --radius:    12px;
+  --radius2:   8px;
+  --mono:      'Space Mono', monospace;
+  --display:   'Syne', sans-serif;
+  --body:      'DM Sans', sans-serif;
+}
+
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--body);
+  font-size:15px;
+  line-height:1.7;
+  overflow-x:hidden;
+}
+
+/* ============================
+   SCROLLBAR
+   ============================ */
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--accent);border-radius:99px;}
+
+/* ============================
+   NOISE OVERLAY
+   ============================ */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events:none;z-index:999;opacity:0.4;
+}
+
+/* ============================
+   ANIMATED GRID BACKGROUND
+   ============================ */
+.grid-bg{
+  position:fixed;inset:0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);
+  background-size:48px 48px;
+  pointer-events:none;z-index:0;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 0%, black 30%, transparent 100%);
+}
+
+/* ============================
+   GLOW ORBS
+   ============================ */
+.orb{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(80px);animation:orbFloat 8s ease-in-out infinite;}
+.orb1{width:600px;height:600px;background:radial-gradient(circle,rgba(59,130,246,0.12),transparent 70%);top:-200px;left:-100px;animation-delay:0s;}
+.orb2{width:500px;height:500px;background:radial-gradient(circle,rgba(167,139,250,0.08),transparent 70%);bottom:-100px;right:-100px;animation-delay:-4s;}
+.orb3{width:300px;height:300px;background:radial-gradient(circle,rgba(16,185,129,0.06),transparent 70%);top:50%;left:50%;animation-delay:-2s;}
+@keyframes orbFloat{0%,100%{transform:translateY(0) scale(1);}50%{transform:translateY(-30px) scale(1.05);}}
+
+/* ============================
+   LAYOUT
+   ============================ */
+.layout{display:flex;min-height:100vh;position:relative;z-index:1;}
+
+/* ============================
+   SIDEBAR
+   ============================ */
+.sidebar{
+  width:260px;min-width:260px;
+  background:rgba(13,17,23,0.85);
+  backdrop-filter:blur(20px);
+  border-right:1px solid var(--border);
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  padding:24px 0;
+  display:flex;flex-direction:column;gap:0;
+}
+.sidebar-logo{
+  padding:0 20px 24px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:16px;
+}
+.logo-badge{
+  display:inline-flex;align-items:center;gap:8px;
+  background:linear-gradient(135deg,rgba(59,130,246,0.15),rgba(167,139,250,0.1));
+  border:1px solid rgba(59,130,246,0.25);
+  border-radius:10px;padding:8px 14px;
+  font-family:var(--mono);font-size:13px;font-weight:700;
+  color:var(--accent2);letter-spacing:0.05em;
+  position:relative;overflow:hidden;
+}
+.logo-badge::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(90deg,transparent,rgba(59,130,246,0.1),transparent);
+  transform:translateX(-100%);
+  animation:shimmer 3s infinite;
+}
+@keyframes shimmer{100%{transform:translateX(100%);}}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.6;transform:scale(0.8);}}
+.version-tag{
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  padding:4px 8px;margin-top:8px;
+  background:rgba(255,255,255,0.03);border-radius:6px;
+  display:inline-block;
+}
+
+.nav-section{padding:0 12px;margin-bottom:4px;}
+.nav-section-label{
+  font-family:var(--mono);font-size:10px;font-weight:700;
+  color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;
+  padding:8px 8px 6px;display:block;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;
+  padding:8px 10px;border-radius:var(--radius2);
+  color:var(--text2);font-size:13.5px;font-weight:400;
+  text-decoration:none;cursor:pointer;
+  transition:all 0.2s ease;position:relative;
+  margin-bottom:2px;
+}
+.nav-item:hover{color:var(--text);background:rgba(255,255,255,0.05);}
+.nav-item.active{
+  color:var(--accent2);
+  background:rgba(59,130,246,0.1);
+  border-left:2px solid var(--accent);
+  padding-left:8px;
+}
+.nav-icon{width:16px;height:16px;opacity:0.7;flex-shrink:0;}
+.nav-badge{
+  margin-left:auto;font-family:var(--mono);font-size:9px;
+  background:rgba(59,130,246,0.2);color:var(--accent3);
+  border:1px solid rgba(59,130,246,0.3);
+  padding:2px 6px;border-radius:99px;
+}
+
+/* ============================
+   MAIN CONTENT
+   ============================ */
+.main{flex:1;padding:48px 60px;max-width:900px;}
+
+/* ============================
+   HERO
+   ============================ */
+.hero{
+  margin-bottom:64px;
+  animation:fadeUp 0.6s ease both;
+}
+@keyframes fadeUp{from{opacity:0;transform:translateY(24px);}to{opacity:1;transform:translateY(0);}}
+.hero-eyebrow{
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  color:var(--accent);letter-spacing:0.15em;text-transform:uppercase;
+  display:flex;align-items:center;gap:8px;margin-bottom:16px;
+}
+.hero-eyebrow::before{content:'';width:24px;height:1px;background:var(--accent);}
+.hero h1{
+  font-family:var(--display);font-size:56px;font-weight:800;
+  line-height:1.05;letter-spacing:-0.02em;
+  background:linear-gradient(135deg, #e2e8f0 0%, #93c5fd 50%, #a78bfa 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:20px;
+}
+.hero p{
+  font-size:17px;color:var(--text2);max-width:560px;line-height:1.8;
+  font-weight:300;
+}
+.hero-chips{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px;}
+.chip{
+  font-family:var(--mono);font-size:11px;
+  padding:5px 12px;border-radius:99px;
+  border:1px solid;
+}
+.chip-blue{background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.3);color:var(--accent3);}
+.chip-green{background:rgba(16,185,129,0.1);border-color:rgba(16,185,129,0.3);color:#6ee7b7;}
+.chip-purple{background:rgba(167,139,250,0.1);border-color:rgba(167,139,250,0.3);color:var(--purple);}
+.chip-gold{background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);color:#fcd34d;}
+
+/* ============================
+   SECTION
+   ============================ */
+.doc-section{
+  margin-bottom:72px;
+  animation:fadeUp 0.6s ease both;
+}
+.doc-section:nth-child(2){animation-delay:0.1s;}
+.doc-section:nth-child(3){animation-delay:0.15s;}
+.doc-section:nth-child(4){animation-delay:0.2s;}
+.doc-section:nth-child(5){animation-delay:0.25s;}
+
+.section-anchor{position:relative;top:-80px;display:block;visibility:hidden;}
+.section-header{
+  display:flex;align-items:center;gap:12px;
+  margin-bottom:28px;padding-bottom:16px;
+  border-bottom:1px solid var(--border);
+}
+.section-num{
+  font-family:var(--mono);font-size:11px;color:var(--accent);
+  background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.2);
+  padding:3px 8px;border-radius:6px;
+}
+.section-header h2{
+  font-family:var(--display);font-size:26px;font-weight:700;
+  color:var(--text);letter-spacing:-0.01em;
+}
+
+/* ============================
+   CODE BLOCK
+   ============================ */
+.code-wrap{
+  background:var(--bg2);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  overflow:hidden;margin:16px 0;
+  position:relative;
+}
+.code-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 16px;
+  background:rgba(255,255,255,0.03);
+  border-bottom:1px solid var(--border);
+}
+.code-lang{
+  font-family:var(--mono);font-size:11px;
+  color:var(--text3);letter-spacing:0.08em;text-transform:uppercase;
+  display:flex;align-items:center;gap:8px;
+}
+.code-lang::before{content:'●';color:var(--accent);font-size:8px;}
+.copy-btn{
+  font-family:var(--mono);font-size:11px;color:var(--text3);
+  background:none;border:1px solid var(--border);
+  padding:4px 12px;border-radius:6px;cursor:pointer;
+  transition:all 0.2s;
+}
+.copy-btn:hover{color:var(--accent2);border-color:rgba(59,130,246,0.4);}
+.copy-btn.copied{color:var(--green);border-color:rgba(16,185,129,0.4);}
+pre{
+  padding:20px;overflow-x:auto;
+  font-family:var(--mono);font-size:13px;line-height:1.8;
+  color:#cbd5e1;
+}
+.kw{color:#93c5fd;}
+.fn{color:#86efac;}
+.str{color:#fca5a5;}
+.cm{color:#475569;font-style:italic;}
+.num{color:#fcd34d;}
+.op{color:#a78bfa;}
+.var{color:#e2e8f0;}
+.prop{color:#7dd3fc;}
+
+/* ============================
+   CALLOUT
+   ============================ */
+.callout{
+  display:flex;gap:14px;
+  padding:16px 20px;border-radius:var(--radius2);
+  margin:16px 0;font-size:14px;
+}
+.callout-info{background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);}
+.callout-warn{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);}
+.callout-success{background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.2);}
+.callout-icon{font-size:18px;flex-shrink:0;margin-top:1px;}
+.callout-body strong{display:block;font-weight:600;margin-bottom:4px;}
+.callout-body{color:var(--text2);line-height:1.6;}
+
+/* ============================
+   PARAM TABLE
+   ============================ */
+.param-table{
+  width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;
+}
+.param-table th{
+  font-family:var(--mono);font-size:10px;font-weight:700;
+  color:var(--text3);letter-spacing:0.1em;text-transform:uppercase;
+  text-align:left;padding:10px 14px;
+  background:rgba(255,255,255,0.02);
+  border-bottom:1px solid var(--border);
+}
+.param-table td{
+  padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.04);
+  vertical-align:top;
+}
+.param-table tr:last-child td{border-bottom:none;}
+.param-table tr:hover td{background:rgba(255,255,255,0.02);}
+.param-name{font-family:var(--mono);color:var(--accent3);font-size:12px;}
+.param-type{
+  font-family:var(--mono);font-size:11px;
+  color:var(--purple);
+  background:rgba(167,139,250,0.1);
+  border:1px solid rgba(167,139,250,0.2);
+  padding:2px 7px;border-radius:5px;white-space:nowrap;
+}
+.param-req{
+  font-family:var(--mono);font-size:10px;
+  color:var(--gold);background:rgba(245,158,11,0.1);
+  border:1px solid rgba(245,158,11,0.2);
+  padding:2px 7px;border-radius:5px;
+}
+.param-opt{
+  font-family:var(--mono);font-size:10px;
+  color:var(--text3);background:rgba(255,255,255,0.05);
+  border:1px solid var(--border);
+  padding:2px 7px;border-radius:5px;
+}
+
+/* ============================
+   METHOD CARDS
+   ============================ */
+.method-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  margin-bottom:16px;overflow:hidden;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.method-card:hover{border-color:var(--border2);box-shadow:var(--glow);}
+.method-head{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 20px;cursor:pointer;
+  border-bottom:1px solid transparent;
+  transition:border-color 0.2s;
+}
+.method-card.open .method-head{border-bottom-color:var(--border);}
+.method-name{
+  font-family:var(--mono);font-size:14px;font-weight:700;
+  color:var(--text);
+}
+.method-tag{
+  font-family:var(--mono);font-size:10px;
+  padding:3px 8px;border-radius:5px;margin-left:auto;
+}
+.tag-fn{background:rgba(134,239,172,0.1);color:#86efac;border:1px solid rgba(134,239,172,0.2);}
+.tag-toggle{background:rgba(59,130,246,0.1);color:var(--accent3);border:1px solid rgba(59,130,246,0.2);}
+.tag-event{background:rgba(167,139,250,0.1);color:var(--purple);border:1px solid rgba(167,139,250,0.2);}
+.method-arrow{
+  color:var(--text3);font-size:12px;
+  transition:transform 0.3s ease;margin-left:8px;
+}
+.method-card.open .method-arrow{transform:rotate(90deg);}
+.method-body{
+  padding:0;max-height:0;overflow:hidden;
+  transition:max-height 0.4s ease,padding 0.3s ease;
+}
+.method-card.open .method-body{max-height:800px;padding:20px;}
+.method-desc{color:var(--text2);font-size:14px;margin-bottom:16px;}
+
+/* ============================
+   THEMES GRID
+   ============================ */
+.themes-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));
+  gap:12px;margin:16px 0;
+}
+.theme-swatch{
+  border-radius:var(--radius2);overflow:hidden;
+  border:1px solid var(--border);cursor:pointer;
+  transition:transform 0.2s,box-shadow 0.2s;
+}
+.theme-swatch:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,0.4);}
+.swatch-bar{height:48px;}
+.swatch-label{
+  padding:8px 10px;font-family:var(--mono);font-size:11px;
+  color:var(--text2);background:var(--panel);
+}
+
+/* ============================
+   STEP LIST
+   ============================ */
+.steps{display:flex;flex-direction:column;gap:0;}
+.step{
+  display:flex;gap:20px;
+  padding:20px 0;
+  border-bottom:1px solid var(--border);
+}
+.step:last-child{border-bottom:none;}
+.step-num{
+  width:32px;height:32px;border-radius:50%;flex-shrink:0;
+  background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:12px;font-weight:700;color:var(--accent2);
+  margin-top:2px;
+}
+.step-content h4{font-family:var(--display);font-weight:600;margin-bottom:6px;font-size:15px;}
+.step-content p{color:var(--text2);font-size:13.5px;}
+
+/* ============================
+   INLINE CODE
+   ============================ */
+code{
+  font-family:var(--mono);font-size:12px;
+  background:rgba(59,130,246,0.08);
+  color:var(--accent3);
+  border:1px solid rgba(59,130,246,0.15);
+  padding:2px 7px;border-radius:5px;
+}
+
+/* ============================
+   DIVIDER
+   ============================ */
+.divider{height:1px;background:var(--border);margin:40px 0;}
+
+/* ============================
+   FOOTER
+   ============================ */
+.footer{
+  padding:40px 60px;
+  border-top:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  color:var(--text3);font-size:13px;font-family:var(--mono);
+}
+
+/* ============================
+   SEARCH BAR
+   ============================ */
+.search-wrap{padding:0 12px;margin-bottom:20px;}
+.search-input{
+  width:100%;background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);border-radius:var(--radius2);
+  padding:9px 14px;font-family:var(--body);font-size:13px;
+  color:var(--text);outline:none;transition:border-color 0.2s;
+}
+.search-input::placeholder{color:var(--text3);}
+.search-input:focus{border-color:rgba(59,130,246,0.4);}
+
+/* ============================
+   RESPONSIVE
+   ============================ */
+@media(max-width:900px){
+  .sidebar{display:none;}
+  .main{padding:32px 24px;}
+  .hero h1{font-size:36px;}
+  .footer{flex-direction:column;gap:12px;text-align:center;}
+}
+
+/* ============================
+   PROGRESS BAR (TOP)
+   ============================ */
+#progress{
+  position:fixed;top:0;left:0;height:2px;
+  background:linear-gradient(90deg,var(--accent),var(--purple));
+  z-index:1000;width:0%;transition:width 0.1s;
+}
+
+/* ============================
+   TOOLTIP
+   ============================ */
+[data-tip]{position:relative;}
+[data-tip]:hover::after{
+  content:attr(data-tip);
+  position:absolute;bottom:calc(100% + 8px);left:50%;
+  transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--border);
+  color:var(--text2);font-size:11px;font-family:var(--mono);
+  padding:5px 10px;border-radius:6px;white-space:nowrap;
+  pointer-events:none;z-index:99;
+}
+</style>
+</head>
+<body>
+
+<div id="progress"></div>
+<div class="grid-bg"></div>
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<div class="layout">
+
+<!-- ========================
+     SIDEBAR
+     ======================== -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-badge">
+      <span class="logo-dot"></span>
+      MIXUSFIELD
+    </div>
+    <div class="version-tag">v1.0 · Lua UI Library</div>
+  </div>
+
+  <div class="search-wrap">
+    <input class="search-input" type="text" placeholder="Search docs..." id="searchInput"/>
+  </div>
+
+  <nav>
+    <div class="nav-section">
+      <span class="nav-section-label">Getting Started</span>
+      <a class="nav-item active" href="#intro" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+        Introduction
+      </a>
+      <a class="nav-item" href="#installation" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        Installation
+      </a>
+      <a class="nav-item" href="#quickstart" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+        Quick Start
+        <span class="nav-badge">new</span>
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <span class="nav-section-label">Core API</span>
+      <a class="nav-item" href="#window" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="3" width="18" height="18" rx="2" stroke-width="2"/><path stroke-linecap="round" stroke-width="2" d="M3 9h18"/></svg>
+        CreateWindow
+      </a>
+      <a class="nav-item" href="#tabs" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        CreateTab
+      </a>
+      <a class="nav-item" href="#components" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+        Components
+      </a>
+      <a class="nav-item" href="#notify" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+        Notifications
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <span class="nav-section-label">Customization</span>
+      <a class="nav-item" href="#themes" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01"/></svg>
+        Themes
+      </a>
+    </div>
+
+    <div class="nav-section">
+      <span class="nav-section-label">Prospecting Hub</span>
+      <a class="nav-item" href="#hub-overview" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"/></svg>
+        Hub Overview
+      </a>
+      <a class="nav-item" href="#hub-tabs" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Tab Guide
+      </a>
+      <a class="nav-item" href="#hub-loader" onclick="setActive(this)">
+        <svg class="nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/></svg>
+        Loader Script
+      </a>
+    </div>
+  </nav>
+</aside>
+
+<!-- ========================
+     MAIN CONTENT
+     ======================== -->
+<main class="main">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-eyebrow">Documentation</div>
+    <h1>Mixusfield<br/>UI Library</h1>
+    <p>A clean, modular Lua UI framework for Roblox scripts. Build beautiful floating windows, tabs, toggles, sliders, dropdowns, and notifications with minimal code.</p>
+    <div class="hero-chips">
+      <span class="chip chip-blue">Lua 5.1</span>
+      <span class="chip chip-green">Roblox Ready</span>
+      <span class="chip chip-purple">8 Themes</span>
+      <span class="chip chip-gold">v1.0 Stable</span>
+    </div>
+  </div>
+
+  <!-- ========================
+       SECTION: INTRO
+       ======================== -->
+  <div class="doc-section" id="intro">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">01</span>
+      <h2>Introduction</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:16px;">Mixusfield is a Roblox UI library loaded via <code>loadstring</code> + <code>HttpGet</code>. It provides a floating window system with tabs, components, and notifications — all styled, animated, and ready to use.</p>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <strong>What makes it different?</strong>
+        Mixusfield uses a declarative API — you describe what you want (a toggle, a slider, a dropdown) and the library handles all rendering, state, and callbacks automatically.
+      </div>
+    </div>
+
+    <p style="color:var(--text2);">All components fire a <code>Callback</code> function when their value changes. The library runs entirely client-side and works alongside any Roblox executor.</p>
+  </div>
+
+  <!-- ========================
+       SECTION: INSTALLATION
+       ======================== -->
+  <div class="doc-section" id="installation">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">02</span>
+      <h2>Installation</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:16px;">Load Mixusfield at the top of any script using <code>loadstring</code> and <code>game:HttpGet</code>:</p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-lang">lua</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="kw">local</span> <span class="var">Mixusfield</span> <span class="op">=</span> <span class="fn">loadstring</span>(<span class="var">game</span><span class="op">:</span><span class="fn">HttpGet</span>(
+    <span class="str">"https://raw.githubusercontent.com/LumeCraftors01/Mixusfield/refs/heads/main/Mixusfield.lua"</span>
+))()</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>HTTP Requests must be enabled</strong>
+        Make sure your executor has HTTP requests enabled. The script fetches the library from GitHub every time it runs.
+      </div>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Open your executor</h4>
+          <p>Launch your preferred Roblox executor (Synapse, KRNL, Fluxus, etc.) and attach it to Roblox.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Paste the loadstring</h4>
+          <p>Copy the loadstring above and paste it at the very top of your script, before any other code.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Execute</h4>
+          <p>Run your script. The library loads from the internet and the <code>Mixusfield</code> variable is now ready to use.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================
+       SECTION: QUICK START
+       ======================== -->
+  <div class="doc-section" id="quickstart">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">03</span>
+      <h2>Quick Start</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:16px;">A minimal working example — creates a window with one tab and a toggle:</p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-lang">lua — full example</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="cm">-- 1. Load the library</span>
+<span class="kw">local</span> <span class="var">Mixusfield</span> <span class="op">=</span> <span class="fn">loadstring</span>(<span class="var">game</span><span class="op">:</span><span class="fn">HttpGet</span>(<span class="str">"..."</span>))()
+
+<span class="cm">-- 2. Create a window</span>
+<span class="kw">local</span> <span class="var">Window</span> <span class="op">=</span> <span class="var">Mixusfield</span><span class="op">:</span><span class="fn">CreateWindow</span>({
+    <span class="prop">Name</span>     <span class="op">=</span> <span class="str">"My Script"</span>,
+    <span class="prop">Subtitle</span> <span class="op">=</span> <span class="str">"by me"</span>,
+    <span class="prop">Theme</span>    <span class="op">=</span> <span class="str">"Dark"</span>,
+    <span class="prop">ToggleButton</span> <span class="op">=</span> { <span class="prop">Enabled</span> <span class="op">=</span> <span class="kw">true</span> }
+})
+
+<span class="cm">-- 3. Create a tab</span>
+<span class="kw">local</span> <span class="var">Main</span> <span class="op">=</span> <span class="var">Window</span><span class="op">:</span><span class="fn">CreateTab</span>({
+    <span class="prop">Name</span> <span class="op">=</span> <span class="str">"Main"</span>,
+    <span class="prop">Icon</span> <span class="op">=</span> { <span class="prop">Type</span> <span class="op">=</span> <span class="str">"Lucide"</span>, <span class="prop">Source</span> <span class="op">=</span> <span class="str">"home"</span> },
+})
+
+<span class="cm">-- 4. Add components</span>
+<span class="var">Main</span><span class="op">:</span><span class="fn">CreateSection</span>({ <span class="prop">Name</span> <span class="op">=</span> <span class="str">"Controls"</span> })
+
+<span class="var">Main</span><span class="op">:</span><span class="fn">CreateToggle</span>({
+    <span class="prop">Name</span>    <span class="op">=</span> <span class="str">"Enable Feature"</span>,
+    <span class="prop">Default</span> <span class="op">=</span> <span class="kw">false</span>,
+    <span class="prop">Callback</span> <span class="op">=</span> <span class="kw">function</span>(<span class="var">value</span>)
+        <span class="fn">print</span>(<span class="str">"Toggle is now:"</span>, <span class="var">value</span>)
+    <span class="kw">end</span>,
+})</pre>
+    </div>
+  </div>
+
+  <!-- ========================
+       SECTION: WINDOW
+       ======================== -->
+  <div class="doc-section" id="window">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">04</span>
+      <h2>CreateWindow</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:16px;">Creates the main floating window. Call this once at the top of your script.</p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-lang">lua</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="kw">local</span> <span class="var">Window</span> <span class="op">=</span> <span class="var">Mixusfield</span><span class="op">:</span><span class="fn">CreateWindow</span>({
+    <span class="prop">Name</span>         <span class="op">=</span> <span class="str">"Window Title"</span>,
+    <span class="prop">Subtitle</span>     <span class="op">=</span> <span class="str">"Subtitle text"</span>,
+    <span class="prop">Theme</span>        <span class="op">=</span> <span class="str">"Dark"</span>,
+    <span class="prop">ToggleButton</span> <span class="op">=</span> { <span class="prop">Enabled</span> <span class="op">=</span> <span class="kw">true</span> }
+})</pre>
+    </div>
+
+    <table class="param-table">
+      <thead><tr><th>Property</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td class="param-name">Name</td><td><span class="param-type">string</span></td><td><span class="param-req">required</span></td><td style="color:var(--text2)">Title shown at the top of the window</td></tr>
+        <tr><td class="param-name">Subtitle</td><td><span class="param-type">string</span></td><td><span class="param-opt">optional</span></td><td style="color:var(--text2)">Smaller text below the title</td></tr>
+        <tr><td class="param-name">Theme</td><td><span class="param-type">string</span></td><td><span class="param-opt">optional</span></td><td style="color:var(--text2)">UI color theme. Defaults to "Dark"</td></tr>
+        <tr><td class="param-name">ToggleButton.Enabled</td><td><span class="param-type">bool</span></td><td><span class="param-opt">optional</span></td><td style="color:var(--text2)">Show a button to hide/show the window</td></tr>
+      </tbody>
+    </table>
+
+    <p style="color:var(--text2);margin-top:16px;">You can change the theme at runtime:</p>
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><span class="var">Window</span><span class="op">:</span><span class="fn">SetTheme</span>(<span class="str">"Ocean"</span>)  <span class="cm">-- change theme live</span></pre>
+    </div>
+  </div>
+
+  <!-- ========================
+       SECTION: TABS
+       ======================== -->
+  <div class="doc-section" id="tabs">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">05</span>
+      <h2>CreateTab</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:16px;">Tabs are the pages inside your window. Each tab holds its own components.</p>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><span class="kw">local</span> <span class="var">Tab</span> <span class="op">=</span> <span class="var">Window</span><span class="op">:</span><span class="fn">CreateTab</span>({
+    <span class="prop">Name</span> <span class="op">=</span> <span class="str">"Farm"</span>,
+    <span class="prop">Icon</span> <span class="op">=</span> { <span class="prop">Type</span> <span class="op">=</span> <span class="str">"Lucide"</span>, <span class="prop">Source</span> <span class="op">=</span> <span class="str">"activity"</span> },
+})</pre>
+    </div>
+
+    <table class="param-table">
+      <thead><tr><th>Property</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td class="param-name">Name</td><td><span class="param-type">string</span></td><td><span class="param-req">required</span></td><td style="color:var(--text2)">Tab label shown in the tab bar</td></tr>
+        <tr><td class="param-name">Icon.Type</td><td><span class="param-type">string</span></td><td><span class="param-opt">optional</span></td><td style="color:var(--text2)">Icon system — use <code>"Lucide"</code></td></tr>
+        <tr><td class="param-name">Icon.Source</td><td><span class="param-type">string</span></td><td><span class="param-opt">optional</span></td><td style="color:var(--text2)">Lucide icon name e.g. <code>"home"</code>, <code>"settings"</code>, <code>"dollar-sign"</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <strong>Lucide icon names</strong>
+        Browse all available icon names at <strong>lucide.dev/icons</strong>. Use the lowercase kebab-case name as the Source value.
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================
+       SECTION: COMPONENTS
+       ======================== -->
+  <div class="doc-section" id="components">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">06</span>
+      <h2>Components</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:20px;">All components are methods on a Tab object. Click each card to expand full details and code.</p>
+
+    <!-- CreateSection -->
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">CreateSection</span>
+        <span class="method-tag tag-fn">layout</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">Adds a labeled divider to visually group components inside a tab.</p>
+        <div class="code-wrap">
+          <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this);event.stopPropagation()">Copy</button></div>
+          <pre><span class="var">Tab</span><span class="op">:</span><span class="fn">CreateSection</span>({ <span class="prop">Name</span> <span class="op">=</span> <span class="str">"Section Title"</span> })</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- CreateToggle -->
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">CreateToggle</span>
+        <span class="method-tag tag-toggle">toggle</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">A boolean on/off switch. Fires Callback with <code>true</code> or <code>false</code> when clicked.</p>
+        <div class="code-wrap">
+          <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this);event.stopPropagation()">Copy</button></div>
+          <pre><span class="var">Tab</span><span class="op">:</span><span class="fn">CreateToggle</span>({
+    <span class="prop">Name</span>     <span class="op">=</span> <span class="str">"Enable Feature"</span>,
+    <span class="prop">Default</span>  <span class="op">=</span> <span class="kw">false</span>,       <span class="cm">-- starting state</span>
+    <span class="prop">Callback</span> <span class="op">=</span> <span class="kw">function</span>(<span class="var">value</span>)
+        <span class="cm">-- value is true or false</span>
+        <span class="fn">print</span>(<span class="var">value</span>)
+    <span class="kw">end</span>,
+})</pre>
+        </div>
+        <table class="param-table">
+          <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">Name</td><td><span class="param-type">string</span></td><td style="color:var(--text2)">Label shown next to the toggle</td></tr>
+            <tr><td class="param-name">Default</td><td><span class="param-type">bool</span></td><td style="color:var(--text2)">Initial state (true = on)</td></tr>
+            <tr><td class="param-name">Callback</td><td><span class="param-type">function</span></td><td style="color:var(--text2)">Called with current value on change</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CreateSlider -->
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">CreateSlider</span>
+        <span class="method-tag tag-fn">slider</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">A draggable numeric slider with min, max, default, and increment.</p>
+        <div class="code-wrap">
+          <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this);event.stopPropagation()">Copy</button></div>
+          <pre><span class="var">Tab</span><span class="op">:</span><span class="fn">CreateSlider</span>({
+    <span class="prop">Name</span>      <span class="op">=</span> <span class="str">"Speed"</span>,
+    <span class="prop">Min</span>       <span class="op">=</span> <span class="num">0.2</span>,
+    <span class="prop">Max</span>       <span class="op">=</span> <span class="num">5</span>,
+    <span class="prop">Default</span>   <span class="op">=</span> <span class="num">1</span>,
+    <span class="prop">Increment</span> <span class="op">=</span> <span class="num">0.1</span>,
+    <span class="prop">Suffix</span>    <span class="op">=</span> <span class="str">" sec"</span>,     <span class="cm">-- shown after the value</span>
+    <span class="prop">Callback</span>  <span class="op">=</span> <span class="kw">function</span>(<span class="var">value</span>)
+        <span class="fn">print</span>(<span class="str">"Slider:"</span>, <span class="var">value</span>)
+    <span class="kw">end</span>,
+})</pre>
+        </div>
+        <table class="param-table">
+          <thead><tr><th>Property</th><th>Type</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">Min / Max</td><td><span class="param-type">number</span></td><td style="color:var(--text2)">Minimum and maximum values</td></tr>
+            <tr><td class="param-name">Default</td><td><span class="param-type">number</span></td><td style="color:var(--text2)">Starting value</td></tr>
+            <tr><td class="param-name">Increment</td><td><span class="param-type">number</span></td><td style="color:var(--text2)">Step size when dragging</td></tr>
+            <tr><td class="param-name">Suffix</td><td><span class="param-type">string</span></td><td style="color:var(--text2)">Unit label appended to value display</td></tr>
+            <tr><td class="param-name">Callback</td><td><span class="param-type">function</span></td><td style="color:var(--text2)">Called with current number value</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- CreateButton -->
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">CreateButton</span>
+        <span class="method-tag tag-fn">action</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">A clickable button that fires Callback once each press.</p>
+        <div class="code-wrap">
+          <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this);event.stopPropagation()">Copy</button></div>
+          <pre><span class="var">Tab</span><span class="op">:</span><span class="fn">CreateButton</span>({
+    <span class="prop">Name</span>     <span class="op">=</span> <span class="str">"Do Action"</span>,
+    <span class="prop">Callback</span> <span class="op">=</span> <span class="kw">function</span>()
+        <span class="fn">print</span>(<span class="str">"Button clicked!"</span>)
+    <span class="kw">end</span>,
+})</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- CreateDropdown -->
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">CreateDropdown</span>
+        <span class="method-tag tag-fn">select</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">A dropdown list. Callback fires with the selected string each time the user picks an option.</p>
+        <div class="code-wrap">
+          <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this);event.stopPropagation()">Copy</button></div>
+          <pre><span class="var">Tab</span><span class="op">:</span><span class="fn">CreateDropdown</span>({
+    <span class="prop">Name</span>    <span class="op">=</span> <span class="str">"Select Item"</span>,
+    <span class="prop">Options</span> <span class="op">=</span> { <span class="str">"Option A"</span>, <span class="str">"Option B"</span>, <span class="str">"Option C"</span> },
+    <span class="prop">Callback</span> <span class="op">=</span> <span class="kw">function</span>(<span class="var">value</span>)
+        <span class="fn">print</span>(<span class="str">"Selected:"</span>, <span class="var">value</span>)
+    <span class="kw">end</span>,
+})</pre>
+        </div>
+        <p style="color:var(--text2);font-size:13px;margin-top:12px;">To refresh the dropdown options dynamically:</p>
+        <div class="code-wrap">
+          <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this);event.stopPropagation()">Copy</button></div>
+          <pre><span class="kw">local</span> <span class="var">dd</span> <span class="op">=</span> <span class="var">Tab</span><span class="op">:</span><span class="fn">CreateDropdown</span>({...})
+<span class="var">dd</span><span class="op">:</span><span class="fn">Refresh</span>({ <span class="str">"New A"</span>, <span class="str">"New B"</span> })  <span class="cm">-- replace options</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- CreateParagraph -->
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">CreateParagraph</span>
+        <span class="method-tag tag-fn">display</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">Displays static text with a bold title and body content. Great for pricing info, instructions, or notes.</p>
+        <div class="code-wrap">
+          <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this);event.stopPropagation()">Copy</button></div>
+          <pre><span class="var">Tab</span><span class="op">:</span><span class="fn">CreateParagraph</span>({
+    <span class="prop">Title</span>   <span class="op">=</span> <span class="str">"Item Prices"</span>,
+    <span class="prop">Content</span> <span class="op">=</span> <span class="str">"Plastic Pan → $500\nMetal Pan → $12K"</span>,
+})</pre>
+        </div>
+        <div class="callout callout-info" style="margin-top:12px;">
+          <div class="callout-icon">💡</div>
+          <div class="callout-body">Use <code>\n</code> inside the Content string to add line breaks.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========================
+       SECTION: NOTIFICATIONS
+       ======================== -->
+  <div class="doc-section" id="notify">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">07</span>
+      <h2>Notifications</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:16px;">Show toast notifications from anywhere in your script using <code>Mixusfield:Notify()</code>.</p>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-lang">lua</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><span class="var">Mixusfield</span><span class="op">:</span><span class="fn">Notify</span>({
+    <span class="prop">Title</span>   <span class="op">=</span> <span class="str">"Purchased!"</span>,
+    <span class="prop">Content</span> <span class="op">=</span> <span class="str">"Golden Pan bought for $333K"</span>,
+    <span class="prop">Type</span>    <span class="op">=</span> <span class="str">"success"</span>,   <span class="cm">-- "success" | "error" | "warning" | "info"</span>
+})</pre>
+    </div>
+
+    <table class="param-table">
+      <thead><tr><th>Type value</th><th>Color</th><th>When to use</th></tr></thead>
+      <tbody>
+        <tr><td class="param-name">success</td><td><span style="color:var(--green)">■</span> Green</td><td style="color:var(--text2)">Purchases, toggles on, actions completed</td></tr>
+        <tr><td class="param-name">error</td><td><span style="color:var(--red)">■</span> Red</td><td style="color:var(--text2)">Failed purchases, missing character, exceptions</td></tr>
+        <tr><td class="param-name">warning</td><td><span style="color:var(--gold)">■</span> Yellow</td><td style="color:var(--text2)">Missing selection, validation issues</td></tr>
+        <tr><td class="param-name">info</td><td><span style="color:var(--accent3)">■</span> Blue</td><td style="color:var(--text2)">General information, state changes</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ========================
+       SECTION: THEMES
+       ======================== -->
+  <div class="doc-section" id="themes">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">08</span>
+      <h2>Themes</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:20px;">Mixusfield includes 8 built-in themes. Pass the theme name to <code>CreateWindow</code> or change it live with <code>Window:SetTheme()</code>.</p>
+
+    <div class="themes-grid">
+      <div class="theme-swatch" data-tip="Dark">
+        <div class="swatch-bar" style="background:linear-gradient(135deg,#0d1117,#1a1f2e);"></div>
+        <div class="swatch-label">Dark</div>
+      </div>
+      <div class="theme-swatch" data-tip="Light">
+        <div class="swatch-bar" style="background:linear-gradient(135deg,#f8fafc,#e2e8f0);"></div>
+        <div class="swatch-label">Light</div>
+      </div>
+      <div class="theme-swatch" data-tip="Midnight">
+        <div class="swatch-bar" style="background:linear-gradient(135deg,#020617,#0f172a);"></div>
+        <div class="swatch-label">Midnight</div>
+      </div>
+      <div class="theme-swatch" data-tip="Ocean">
+        <div class="swatch-bar" style="background:linear-gradient(135deg,#0c4a6e,#0369a1);"></div>
+        <div class="swatch-label">Ocean</div>
+      </div>
+      <div class="theme-swatch" data-tip="Forest">
+        <div class="swatch-bar" style="background:linear-gradient(135deg,#14532d,#166534);"></div>
+        <div class="swatch-label">Forest</div>
+      </div>
+      <div class="theme-swatch" data-tip="Sunset">
+        <div class="swatch-bar" style="background:linear-gradient(135deg,#7c2d12,#c2410c);"></div>
+        <div class="swatch-label">Sunset</div>
+      </div>
+      <div class="theme-swatch" data-tip="Candy">
+        <div class="swatch-bar" style="background:linear-gradient(135deg,#ec4899,#f97316);"></div>
+        <div class="swatch-label">Candy</div>
+      </div>
+      <div class="theme-swatch" data-tip="Rose">
+        <div class="swatch-bar" style="background:linear-gradient(135deg,#881337,#be123c);"></div>
+        <div class="swatch-label">Rose</div>
+      </div>
+    </div>
+
+    <div class="code-wrap" style="margin-top:20px;">
+      <div class="code-header"><span class="code-lang">lua — change theme live</span><button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre><span class="cm">-- In CreateWindow:</span>
+<span class="prop">Theme</span> <span class="op">=</span> <span class="str">"Ocean"</span>
+
+<span class="cm">-- Or change at runtime via dropdown callback:</span>
+<span class="var">Window</span><span class="op">:</span><span class="fn">SetTheme</span>(<span class="str">"Forest"</span>)</pre>
+    </div>
+  </div>
+
+  <!-- ========================
+       SECTION: HUB OVERVIEW
+       ======================== -->
+  <div class="doc-section" id="hub-overview">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">09</span>
+      <h2>Prospecting Hub — Overview</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:16px;">The Prospecting Hub is a ready-to-use script built on Mixusfield for gold prospecting games. It includes 5 tabs covering automation, teleportation, shopping, selling, and settings.</p>
+
+    <div class="callout callout-success">
+      <div class="callout-icon">✅</div>
+      <div class="callout-body">
+        <strong>What the Hub does</strong>
+        Automatically pans for gold, teleports your character forward during each pan shake and returns you, buys items from the in-game shop via RemoteFunction, sells your inventory, and lets you customize the UI theme.
+      </div>
+    </div>
+
+    <table class="param-table" style="margin-top:20px;">
+      <thead><tr><th>Tab</th><th>Purpose</th></tr></thead>
+      <tbody>
+        <tr><td class="param-name">Main</td><td style="color:var(--text2)">Toggle Auto Prospect on/off, set speed, manual prospect</td></tr>
+        <tr><td class="param-name">Teleport</td><td style="color:var(--text2)">Configure forward stud distance, hold timer, auto run, test teleport</td></tr>
+        <tr><td class="param-name">Shop</td><td style="color:var(--text2)">Buy pans, shovels, potions, and items from all zones</td></tr>
+        <tr><td class="param-name">Sell</td><td style="color:var(--text2)">Sell All button + Auto Sell toggle (every 3 seconds)</td></tr>
+        <tr><td class="param-name">Settings</td><td style="color:var(--text2)">Change UI theme, reset all systems</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ========================
+       SECTION: HUB TABS
+       ======================== -->
+  <div class="doc-section" id="hub-tabs">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">10</span>
+      <h2>Hub Tab Guide</h2>
+    </div>
+
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">🏠 Main Tab</span>
+        <span class="method-tag tag-toggle">auto</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">Controls the core auto-prospecting loop.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content"><h4>Enable Auto Prospect</h4><p>Toggle ON to start the auto loop. The script fires Collect, Pan, and Shake remotes on your equipped pan every N seconds.</p></div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content"><h4>Prospect Speed slider</h4><p>Adjust from 0.2–5 seconds between each prospect cycle. Lower = faster farming.</p></div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content"><h4>Manual Prospect Once</h4><p>Fire one prospect cycle immediately without enabling auto loop.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">🚀 Teleport Tab</span>
+        <span class="method-tag tag-fn">movement</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">Controls how Auto Prospect moves your character during each cycle.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content"><h4>Forward Distance</h4><p>Set 1–50 studs. During each auto prospect, the character is moved forward by this many studs (X/Z only — height never changes).</p></div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content"><h4>Teleport Hold Timer</h4><p>0–3 seconds to wait at the forward position before firing remotes and returning. Tweak this if the server needs more time to register the position.</p></div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content"><h4>Auto Run toggle</h4><p>Continuously moves your character forward (like holding W). Disable when not needed to prevent drifting.</p></div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-content"><h4>Test button</h4><p>Teleports forward by your set distance, waits the hold timer, then returns you. Use this to verify settings before enabling Auto Prospect.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">🛒 Shop Tab</span>
+        <span class="method-tag tag-fn">buy</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">Buy any item from the in-game shop. Items are organized into 4 sections.</p>
+        <div class="callout callout-info">
+          <div class="callout-icon">ℹ️</div>
+          <div class="callout-body">Each section has a <strong>dropdown</strong> to pick the item and a <strong>Buy button</strong> to purchase it. Items are sorted cheapest to most expensive. A pricing paragraph shows prices and zones for reference.</div>
+        </div>
+        <table class="param-table" style="margin-top:12px;">
+          <thead><tr><th>Section</th><th>Items</th></tr></thead>
+          <tbody>
+            <tr><td class="param-name">🍳 Pans</td><td style="color:var(--text2)">14 pans — Plastic Pan ($500) through Lifetouched Pan ($80B)</td></tr>
+            <tr><td class="param-name">⛏️ Shovels</td><td style="color:var(--text2)">17 shovels — Iron Shovel ($3K) through Lifetouched Shovel ($80B)</td></tr>
+            <tr><td class="param-name">🧪 Potions</td><td style="color:var(--text2)">11 potions with effects — Basic Luck ($5K) to Supreme Luck ($500K)</td></tr>
+            <tr><td class="param-name">📦 Items</td><td style="color:var(--text2)">23 items — sluice boxes, totems, special items, and more</td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--text2);font-size:13px;margin-top:12px;">The buy function uses <code>workspace.Purchasable.[Zone].[ItemName].ShopItem</code> and calls <code>Remotes.Shop.BuyItem:InvokeServer(shopItem, 1)</code>.</p>
+      </div>
+    </div>
+
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">💰 Sell Tab</span>
+        <span class="method-tag tag-fn">sell</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">Sell everything in your backpack instantly or automatically.</p>
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content"><h4>Sell All Now</h4><p>Fires <code>Remotes.Shop.SellAll:InvokeServer()</code> once. All items in your backpack are sold immediately.</p></div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content"><h4>Auto Sell All toggle</h4><p>Enable to automatically sell everything every 3 seconds. Combine with Auto Prospect for fully automated farming.</p></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="method-card" onclick="toggleCard(this)">
+      <div class="method-head">
+        <span class="method-name">⚙️ Settings Tab</span>
+        <span class="method-tag tag-fn">config</span>
+        <span class="method-arrow">▶</span>
+      </div>
+      <div class="method-body">
+        <p class="method-desc">Theme selection and system reset.</p>
+        <div class="callout callout-success">
+          <div class="callout-icon">🎨</div>
+          <div class="callout-body"><strong>UI Theme dropdown</strong> — pick from Dark, Light, Midnight, Ocean, Forest, Sunset, Candy, or Rose. The window updates live via <code>Window:SetTheme()</code>.</div>
+        </div>
+        <p style="color:var(--text2);font-size:13px;margin-top:12px;"><strong>Reset All Systems</strong> turns off Auto Prospect, Auto Sell, Auto Run, resets all sliders to defaults, and clears all dropdown selections.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ========================
+       SECTION: LOADER
+       ======================== -->
+  <div class="doc-section" id="hub-loader">
+    <span class="section-anchor"></span>
+    <div class="section-header">
+      <span class="section-num">11</span>
+      <h2>Loader Script</h2>
+    </div>
+    <p style="color:var(--text2);margin-bottom:16px;">To run the Prospecting Hub, execute this one-liner in your Roblox executor:</p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-lang">lua — execute this</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      </div>
+      <pre><span class="fn">loadstring</span>(<span class="var">game</span><span class="op">:</span><span class="fn">HttpGet</span>(<span class="str">"https://raw.githubusercontent.com/megaloton1345-ui/jdjsjja/refs/heads/main/ProspectingHub.lua.txt"</span>))()</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Executor requirements</strong>
+        Your executor must support <code>game:HttpGet</code>, <code>loadstring</code>, and CFrame manipulation. Most modern executors (Synapse X, Fluxus, Arceus X, etc.) support all of these.
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">ℹ️</div>
+      <div class="callout-body">
+        <strong>Auto updates</strong>
+        Because the script is loaded from a URL every time, any updates pushed to the GitHub repository will automatically be applied next time you run the loader.
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <footer class="footer" style="padding:40px 0;">
+    <span>MIXUSFIELD DOCS · v1.0</span>
+    <span>Built with the Mixusfield UI Library</span>
+  </footer>
+
+</main>
+</div>
+
+<script>
+// ============================
+// PROGRESS BAR
+// ============================
+window.addEventListener('scroll', () => {
+  const el = document.getElementById('progress');
+  const max = document.documentElement.scrollHeight - window.innerHeight;
+  el.style.width = (window.scrollY / max * 100) + '%';
+});
+
+// ============================
+// ACTIVE NAV
+// ============================
+function setActive(el) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// Highlight nav on scroll
+const sections = document.querySelectorAll('.doc-section');
+const navItems = document.querySelectorAll('.nav-item[href]');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 120) current = s.id;
+  });
+  navItems.forEach(n => {
+    n.classList.toggle('active', n.getAttribute('href') === '#' + current);
+  });
+}, {passive:true});
+
+// ============================
+// ACCORDION CARDS
+// ============================
+function toggleCard(card) {
+  const isOpen = card.classList.contains('open');
+  document.querySelectorAll('.method-card.open').forEach(c => c.classList.remove('open'));
+  if (!isOpen) card.classList.add('open');
+}
+
+// ============================
+// COPY CODE
+// ============================
+function copyCode(btn) {
+  const pre = btn.closest('.code-wrap').querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+// ============================
+// SEARCH
+// ============================
+document.getElementById('searchInput').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  navItems.forEach(n => {
+    const match = n.textContent.toLowerCase().includes(q);
+    n.style.display = q && !match ? 'none' : '';
+  });
+});
+
+// ============================
+// STAGGER ANIMATION ON LOAD
+// ============================
+document.querySelectorAll('.method-card').forEach((card, i) => {
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(16px)';
+  card.style.transition = 'opacity 0.4s ease, transform 0.4s ease, border-color 0.2s, box-shadow 0.2s';
+  setTimeout(() => {
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  }, 400 + i * 60);
+});
+</script>
+</body>
+</html>
