@@ -2,7 +2,7 @@
     ╔══════════════════════════════════════════════════════════════════╗
     ║                     MIXUSFIELD UI FRAMEWORK                     ║
     ║              Modern • Responsive • Lightweight • Clean          ║
-    ║                         Version 1.0.0                          ║
+    ║                         Version 1.2.0                          ║
     ╚══════════════════════════════════════════════════════════════════╝
 
     A fully polished, lightweight, responsive, and production-ready
@@ -148,15 +148,15 @@ end
 local Themes = {
     Dark = {
         Background      = Utility.Hex("#0E0E14"),
-        Surface         = Utility.Hex("#16161F"),
-        SurfaceAlt      = Utility.Hex("#1C1C28"),
-        Border          = Utility.Hex("#2A2A3A"),
-        TopBar          = Utility.Hex("#12121A"),
+        Surface         = Utility.Hex("#13131C"),
+        SurfaceAlt      = Utility.Hex("#191926"),
+        Border          = Utility.Hex("#26263A"),
+        TopBar          = Utility.Hex("#10101A"),
         TabBar          = Utility.Hex("#0E0E14"),
-        TabActive       = Utility.Hex("#1E1E2E"),
+        TabActive       = Utility.Hex("#1A1A2C"),
         Text            = Utility.Hex("#E8E8F0"),
-        TextDim         = Utility.Hex("#8888A8"),
-        TextMuted       = Utility.Hex("#55556A"),
+        TextDim         = Utility.Hex("#9090B0"),
+        TextMuted       = Utility.Hex("#52526A"),
         Accent          = Utility.Hex("#7C6BF0"),
         AccentDim       = Utility.Hex("#5A4EBF"),
         AccentGlow      = Utility.Hex("#7C6BF0"),
@@ -164,24 +164,24 @@ local Themes = {
         Warning         = Utility.Hex("#FFD166"),
         Error           = Utility.Hex("#EF476F"),
         Info            = Utility.Hex("#6EAAFF"),
-        ScrollBar       = Utility.Hex("#2A2A3A"),
-        InputBackground = Utility.Hex("#1A1A26"),
+        ScrollBar       = Utility.Hex("#26263A"),
+        InputBackground = Utility.Hex("#16162A"),
         Shadow          = Utility.Hex("#000000"),
-        ToggleOff       = Utility.Hex("#2A2A3A"),
-        SliderTrack     = Utility.Hex("#2A2A3A"),
+        ToggleOff       = Utility.Hex("#26263A"),
+        SliderTrack     = Utility.Hex("#26263A"),
         Transparency    = 0.08,
     },
     Light = {
         Background      = Utility.Hex("#F4F4FA"),
-        Surface         = Utility.Hex("#FFFFFF"),
-        SurfaceAlt      = Utility.Hex("#EDEDF5"),
-        Border          = Utility.Hex("#D8D8E8"),
+        Surface         = Utility.Hex("#EAEAF4"),
+        SurfaceAlt      = Utility.Hex("#E0E0EE"),
+        Border          = Utility.Hex("#CCCCE0"),
         TopBar          = Utility.Hex("#FFFFFF"),
         TabBar          = Utility.Hex("#F4F4FA"),
         TabActive       = Utility.Hex("#FFFFFF"),
         Text            = Utility.Hex("#1A1A2E"),
-        TextDim         = Utility.Hex("#555570"),
-        TextMuted       = Utility.Hex("#9999B0"),
+        TextDim         = Utility.Hex("#44445E"),
+        TextMuted       = Utility.Hex("#8080A0"),
         Accent          = Utility.Hex("#6C5CF0"),
         AccentDim       = Utility.Hex("#4A3DCF"),
         AccentGlow      = Utility.Hex("#6C5CF0"),
@@ -189,24 +189,24 @@ local Themes = {
         Warning         = Utility.Hex("#E5AB00"),
         Error           = Utility.Hex("#D63060"),
         Info            = Utility.Hex("#3A8AEE"),
-        ScrollBar       = Utility.Hex("#C8C8DC"),
-        InputBackground = Utility.Hex("#EEEEF8"),
+        ScrollBar       = Utility.Hex("#BEBECE"),
+        InputBackground = Utility.Hex("#E6E6F2"),
         Shadow          = Utility.Hex("#AAAACC"),
-        ToggleOff       = Utility.Hex("#C8C8D8"),
-        SliderTrack     = Utility.Hex("#D0D0E0"),
+        ToggleOff       = Utility.Hex("#C0C0D4"),
+        SliderTrack     = Utility.Hex("#C8C8DC"),
         Transparency    = 0.04,
     },
     AMOLED = {
         Background      = Utility.Hex("#000000"),
-        Surface         = Utility.Hex("#080808"),
-        SurfaceAlt      = Utility.Hex("#0F0F0F"),
-        Border          = Utility.Hex("#1A1A1A"),
-        TopBar          = Utility.Hex("#050505"),
+        Surface         = Utility.Hex("#060606"),
+        SurfaceAlt      = Utility.Hex("#0D0D0D"),
+        Border          = Utility.Hex("#181818"),
+        TopBar          = Utility.Hex("#030303"),
         TabBar          = Utility.Hex("#000000"),
-        TabActive       = Utility.Hex("#111111"),
+        TabActive       = Utility.Hex("#0E0E0E"),
         Text            = Utility.Hex("#F0F0F0"),
-        TextDim         = Utility.Hex("#707080"),
-        TextMuted       = Utility.Hex("#404050"),
+        TextDim         = Utility.Hex("#808090"),
+        TextMuted       = Utility.Hex("#484858"),
         Accent          = Utility.Hex("#9B8BFF"),
         AccentDim       = Utility.Hex("#6B5BCC"),
         AccentGlow      = Utility.Hex("#9B8BFF"),
@@ -214,11 +214,11 @@ local Themes = {
         Warning         = Utility.Hex("#FFD060"),
         Error           = Utility.Hex("#FF4466"),
         Info            = Utility.Hex("#5599FF"),
-        ScrollBar       = Utility.Hex("#1A1A1A"),
-        InputBackground = Utility.Hex("#0C0C0C"),
+        ScrollBar       = Utility.Hex("#181818"),
+        InputBackground = Utility.Hex("#0A0A0A"),
         Shadow          = Utility.Hex("#000000"),
-        ToggleOff       = Utility.Hex("#1A1A1A"),
-        SliderTrack     = Utility.Hex("#1A1A1A"),
+        ToggleOff       = Utility.Hex("#181818"),
+        SliderTrack     = Utility.Hex("#181818"),
         Transparency    = 0.0,
     },
 }
@@ -1280,7 +1280,7 @@ function Components.Button(parent, config, theme, tabId)
 
     local frame = Builder.Frame({
         Name             = "Button_" .. (config.Name or "Button"),
-        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundColor3 = theme.Surface,
         Size             = UDim2.new(1, 0, 0, COMP_HEIGHT),
         ZIndex           = 5,
         ClipsDescendants = true,
@@ -1307,7 +1307,7 @@ function Components.Button(parent, config, theme, tabId)
 
     Builder.Label({
         Text     = config.Name or "Button",
-        TextColor3 = theme.Text,
+        TextColor3 = theme.TextDim,
         Font     = Enum.Font.GothamSemibold,
         TextSize = 13,
         Size     = UDim2.new(1, -(iconOffset + 16), 1, 0),
@@ -1347,7 +1347,7 @@ function Components.Button(parent, config, theme, tabId)
     clickBtn.MouseButton1Click:Connect(function()
         Utility.Tween(frame, Utility.TI(0.08), { BackgroundColor3 = theme.Accent })
         task.delay(0.12, function()
-            Utility.Tween(frame, Utility.TI(0.2), { BackgroundColor3 = theme.SurfaceAlt })
+            Utility.Tween(frame, Utility.TI(0.2), { BackgroundColor3 = theme.Surface })
         end)
         local mp = UserInputService:GetMouseLocation()
         ripple(mp.X, mp.Y)
@@ -1355,10 +1355,10 @@ function Components.Button(parent, config, theme, tabId)
     end)
 
     clickBtn.MouseEnter:Connect(function()
-        Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.Surface })
+        Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.SurfaceAlt })
     end)
     clickBtn.MouseLeave:Connect(function()
-        Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.SurfaceAlt })
+        Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.Surface })
     end)
 
     SearchRegistry.Register(tabId, frame, config.Name or "Button")
@@ -1380,7 +1380,7 @@ function Components.Toggle(parent, config, theme, tabId)
 
     local frame = Builder.Frame({
         Name             = "Toggle_" .. (config.Name or "Toggle"),
-        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundColor3 = theme.Surface,
         Size             = UDim2.new(1, 0, 0, COMP_HEIGHT),
         ZIndex           = 5,
     }, parent)
@@ -1397,7 +1397,7 @@ function Components.Toggle(parent, config, theme, tabId)
 
     Builder.Label({
         Text     = config.Name or "Toggle",
-        TextColor3 = theme.Text,
+        TextColor3 = theme.TextDim,
         Font     = Enum.Font.GothamSemibold,
         TextSize = 13,
         Size     = UDim2.new(1, -(iconOffset + 70), 1, 0),
@@ -1438,8 +1438,8 @@ function Components.Toggle(parent, config, theme, tabId)
         Utility.SafeCall(config.Callback, state)
     end)
 
-    clickBtn.MouseEnter:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.Surface }) end)
-    clickBtn.MouseLeave:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.SurfaceAlt }) end)
+    clickBtn.MouseEnter:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.SurfaceAlt }) end)
+    clickBtn.MouseLeave:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.Surface }) end)
 
     SearchRegistry.Register(tabId, frame, config.Name or "Toggle")
 
@@ -1477,7 +1477,7 @@ function Components.Slider(parent, config, theme, tabId)
 
     local frame = Builder.Frame({
         Name             = "Slider_" .. (config.Name or "Slider"),
-        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundColor3 = theme.Surface,
         Size             = UDim2.new(1, 0, 0, COMP_HEIGHT),
         ZIndex           = 5,
     }, parent)
@@ -1487,7 +1487,7 @@ function Components.Slider(parent, config, theme, tabId)
 
     local nameLabel = Builder.Label({
         Text     = config.Name or "Slider",
-        TextColor3 = theme.Text,
+        TextColor3 = theme.TextDim,
         Font     = Enum.Font.GothamSemibold,
         TextSize = 13,
         Size     = UDim2.new(1, -60, 0, 20),
@@ -1626,7 +1626,7 @@ function Components.Dropdown(parent, config, theme, tabId)
 
     local frame = Builder.Frame({
         Name             = "Dropdown_" .. (config.Name or "Dropdown"),
-        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundColor3 = theme.Surface,
         Size             = UDim2.new(1, 0, 0, COMP_HEIGHT),
         ZIndex           = 10,
         ClipsDescendants = false,
@@ -1638,7 +1638,7 @@ function Components.Dropdown(parent, config, theme, tabId)
         Text     = config.Name or "Dropdown",
         TextColor3 = theme.TextDim,
         Font     = Enum.Font.GothamSemibold,
-        TextSize = 11,
+        TextSize = 12,
         Size     = UDim2.new(0.4, 0, 1, 0),
         Position = UDim2.fromOffset(12, 0),
         ZIndex   = 11,
@@ -1662,7 +1662,7 @@ function Components.Dropdown(parent, config, theme, tabId)
 
     -- Dropdown list panel
     local listPanel = Builder.Frame({
-        BackgroundColor3 = theme.Surface,
+        BackgroundColor3 = theme.SurfaceAlt,
         Size             = UDim2.new(1, 0, 0, 0),
         Position         = UDim2.new(0, 0, 1, 4),
         ZIndex           = 20,
@@ -1761,8 +1761,8 @@ function Components.Dropdown(parent, config, theme, tabId)
 
     local clickBtn = Builder.TextButton({ Text="", BackgroundTransparency=1, Size=UDim2.fromScale(1,1), ZIndex=12 }, frame)
     clickBtn.MouseButton1Click:Connect(toggle)
-    clickBtn.MouseEnter:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.Surface }) end)
-    clickBtn.MouseLeave:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.SurfaceAlt }) end)
+    clickBtn.MouseEnter:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.SurfaceAlt }) end)
+    clickBtn.MouseLeave:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.Surface }) end)
 
     SearchRegistry.Register(tabId, frame, config.Name or "Dropdown")
 
@@ -1809,7 +1809,7 @@ function Components.Textbox(parent, config, theme, tabId)
 
     local frame = Builder.Frame({
         Name             = "Textbox_" .. (config.Name or "Textbox"),
-        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundColor3 = theme.Surface,
         Size             = UDim2.new(1, 0, 0, COMP_HEIGHT),
         ZIndex           = 5,
     }, parent)
@@ -1820,7 +1820,7 @@ function Components.Textbox(parent, config, theme, tabId)
         Text     = config.Name or "Textbox",
         TextColor3 = theme.TextDim,
         Font     = Enum.Font.GothamSemibold,
-        TextSize = 11,
+        TextSize = 12,
         Size     = UDim2.new(0.38, 0, 1, 0),
         Position = UDim2.fromOffset(12, 0),
         ZIndex   = 6,
@@ -1905,7 +1905,7 @@ function Components.Keybind(parent, config, theme, tabId)
 
     local frame = Builder.Frame({
         Name             = "Keybind_" .. (config.Name or "Keybind"),
-        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundColor3 = theme.Surface,
         Size             = UDim2.new(1, 0, 0, COMP_HEIGHT),
         ZIndex           = 5,
     }, parent)
@@ -1914,7 +1914,7 @@ function Components.Keybind(parent, config, theme, tabId)
 
     Builder.Label({
         Text     = config.Name or "Keybind",
-        TextColor3 = theme.Text,
+        TextColor3 = theme.TextDim,
         Font     = Enum.Font.GothamSemibold,
         TextSize = 13,
         Size     = UDim2.new(0.55, 0, 1, 0),
@@ -1969,8 +1969,8 @@ function Components.Keybind(parent, config, theme, tabId)
         end)
     end)
 
-    clickBtn.MouseEnter:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.Surface }) end)
-    clickBtn.MouseLeave:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.SurfaceAlt }) end)
+    clickBtn.MouseEnter:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.SurfaceAlt }) end)
+    clickBtn.MouseLeave:Connect(function() Utility.Tween(frame, Utility.TI(0.15), { BackgroundColor3 = theme.Surface }) end)
 
     SearchRegistry.Register(tabId, frame, config.Name or "Keybind")
 
@@ -2028,14 +2028,23 @@ function Components.Paragraph(parent, config, theme, tabId)
     ]]
     local frame = Builder.Frame({
         Name             = "Paragraph_" .. Utility.UID(),
-        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundColor3 = theme.Surface,
         Size             = UDim2.new(1, 0, 0, 0),
         AutomaticSize    = Enum.AutomaticSize.Y,
         ZIndex           = 5,
     }, parent)
     Builder.Corner(8, frame)
     Builder.Stroke(theme.Border, 1, frame)
-    Builder.Padding(12, 12, 12, 12, frame)
+    Builder.Padding(12, 12, 12, 16, frame)
+
+    -- Accent left bar
+    local accentBar = Builder.Frame({
+        BackgroundColor3 = theme.Accent,
+        Size   = UDim2.new(0, 3, 1, -16),
+        Position = UDim2.fromOffset(0, 8),
+        ZIndex = 7,
+    }, frame)
+    Builder.Corner(2, accentBar)
 
     local inner = Builder.Frame({
         BackgroundTransparency = 1,
@@ -2043,12 +2052,12 @@ function Components.Paragraph(parent, config, theme, tabId)
         AutomaticSize = Enum.AutomaticSize.Y,
         ZIndex = 6,
     }, frame)
-    Builder.ListLayout({ Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }, inner)
+    Builder.ListLayout({ Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder }, inner)
 
     if config.Title and config.Title ~= "" then
         Builder.Label({
             Text     = config.Title,
-            TextColor3 = theme.Text,
+            TextColor3 = theme.TextDim,
             Font     = Enum.Font.GothamBold,
             TextSize = 13,
             Size     = UDim2.new(1, 0, 0, 18),
@@ -2062,7 +2071,7 @@ function Components.Paragraph(parent, config, theme, tabId)
     if config.Content and config.Content ~= "" then
         Builder.Label({
             Text     = config.Content,
-            TextColor3 = theme.TextDim,
+            TextColor3 = theme.TextMuted,
             Font     = Enum.Font.Gotham,
             TextSize = 12,
             Size     = UDim2.new(1, 0, 0, 0),
@@ -2093,39 +2102,43 @@ function Components.Section(parent, config, theme)
     ]]
     local frame = Builder.Frame({
         Name             = "Section_" .. Utility.UID(),
-        BackgroundTransparency = 1,
-        Size             = UDim2.new(1, 0, 0, 28),
+        BackgroundColor3 = theme.SurfaceAlt,
+        BackgroundTransparency = 0,
+        Size             = UDim2.new(1, 0, 0, 30),
         ZIndex           = 5,
     }, parent)
+    Builder.Corner(6, frame)
+    Builder.Stroke(theme.Border, 1, frame)
+    Builder.Padding(0, 10, 0, 10, frame)
 
-    -- Line
+    -- Line left accent bar
+    Builder.Frame({
+        BackgroundColor3 = theme.Accent,
+        Size   = UDim2.new(0, 3, 0, 14),
+        Position = UDim2.new(0, 0, 0.5, -7),
+        ZIndex = 6,
+    }, frame)
+    Builder.Corner(2, frame:FindFirstChildWhichIsA("Frame"))
+
+    -- Divider line (right side of accent bar)
     Builder.Frame({
         BackgroundColor3 = theme.Border,
-        Size   = UDim2.new(1, 0, 0, 1),
-        Position = UDim2.new(0, 0, 0.5, 0),
+        Size   = UDim2.new(1, -80, 0, 1),
+        Position = UDim2.new(1, -1, 0.5, 0),
+        AnchorPoint = Vector2.new(1, 0.5),
         ZIndex = 5,
     }, frame)
 
-    -- Label badge
-    local badge = Builder.Frame({
-        BackgroundColor3 = theme.Background,
-        Size   = UDim2.fromOffset(0, 20),
-        AutomaticSize = Enum.AutomaticSize.X,
-        Position = UDim2.fromOffset(12, 4),
-        ZIndex = 6,
-    }, frame)
-    Builder.Padding(0, 6, 0, 6, badge)
-
     Builder.Label({
         Text     = config.Name or "Section",
-        TextColor3 = theme.TextMuted,
-        Font     = Enum.Font.GothamSemibold,
-        TextSize = 10,
-        Size     = UDim2.fromScale(1, 1),
-        AutomaticSize = Enum.AutomaticSize.X,
-        TextXAlignment = Enum.TextXAlignment.Center,
-        ZIndex = 7,
-    }, badge)
+        TextColor3 = theme.TextDim,
+        Font     = Enum.Font.GothamBold,
+        TextSize = 11,
+        Size     = UDim2.new(1, -14, 1, 0),
+        Position = UDim2.fromOffset(12, 0),
+        ZIndex   = 7,
+        TextXAlignment = Enum.TextXAlignment.Left,
+    }, frame)
 
     return frame
 end
@@ -2849,33 +2862,121 @@ function Mixusfield:CreateWindow(config)
     -- Set theme
     local theme = ThemeManager.Set(config.Theme or "Dark", config.Accent)
 
-    -- Handle key system before showing window
-    if config.KeySystem then
-        local windowRef = nil
-        local function onSuccess()
-            -- Create and show window after key verification
-            local win = Window.new(self._screenGui, config, theme)
-            table.insert(self._windows, win)
-            windowRef = win
-        end
-
-        KeySystem.Create(self._screenGui, config.KeySystem, theme, onSuccess)
-
-        -- Return a proxy that resolves after key is accepted
-        local proxy = {}
-        setmetatable(proxy, {
-            __index = function(_, k)
-                -- Wait for window to be created
-                while not windowRef do task.wait(0.05) end
-                return windowRef[k]
-            end
-        })
-        return proxy
+    -- ── No key system: build window immediately ──────────────────────────────
+    if not config.KeySystem then
+        local win = Window.new(self._screenGui, config, theme)
+        table.insert(self._windows, win)
+        return win
     end
 
-    local win = Window.new(self._screenGui, config, theme)
-    table.insert(self._windows, win)
-    return win
+    -- ── Key system path ──────────────────────────────────────────────────────
+    -- We return a WindowProxy immediately so the caller can call :CreateTab()
+    -- etc. right away. All calls are queued and replayed once the key is
+    -- verified and the real Window is built.
+
+    local windowProxy = {}
+    local realWindow  = nil          -- set after successful key verification
+    local tabQueue    = {}           -- { {method, args…} }  – deferred calls
+    local tabProxies  = {}           -- tab proxies returned to caller
+    local resolved    = false
+
+    -- ── Tab proxy: queues component calls until real tab exists ──────────────
+    local function makeTabProxy(queuedEntry)
+        local tabProxy = {}
+        local tabReal  = nil   -- assigned when the real tab is built
+        local compQueue = {}   -- {method, args}
+
+        local function replayComp()
+            for _, call in ipairs(compQueue) do
+                local m = call[1]
+                local args = call[2]
+                if tabReal and tabReal[m] then
+                    tabReal[m](tabReal, table.unpack(args))
+                end
+            end
+            compQueue = {}
+        end
+
+        queuedEntry._tabProxy  = tabProxy
+        queuedEntry._replayFn  = function(realTab)
+            tabReal = realTab
+            replayComp()
+        end
+
+        local compMethods = {
+            "CreateButton","CreateToggle","CreateSlider","CreateDropdown",
+            "CreateTextbox","CreateKeybind","CreateLabel","CreateParagraph","CreateSection"
+        }
+        for _, mName in ipairs(compMethods) do
+            tabProxy[mName] = function(self_proxy, cfg)
+                if tabReal then
+                    return tabReal[mName](tabReal, cfg)
+                else
+                    table.insert(compQueue, {mName, {cfg}})
+                    -- Return a no-op api proxy so callers don't error
+                    local apiProxy = {}
+                    setmetatable(apiProxy, { __index = function() return function() end end })
+                    return apiProxy
+                end
+            end
+        end
+
+        return tabProxy
+    end
+
+    -- ── Window proxy: queues CreateTab calls ─────────────────────────────────
+    local windowMeta = {}
+    windowMeta.__index = function(_, k)
+        if k == "CreateTab" then
+            return function(self_proxy, cfg)
+                if realWindow then
+                    return realWindow:CreateTab(cfg)
+                end
+                local entry = { method = "CreateTab", args = {cfg} }
+                table.insert(tabQueue, entry)
+                return makeTabProxy(entry)
+            end
+        end
+        -- For any other Window method (Show, Hide, Notify, etc.)
+        return function(self_proxy, ...)
+            if realWindow then
+                local fn = realWindow[k]
+                if type(fn) == "function" then return fn(realWindow, ...) end
+            else
+                -- Queue generic calls
+                local args = {...}
+                table.insert(tabQueue, { method = k, args = args, isGeneric = true })
+            end
+        end
+    end
+    setmetatable(windowProxy, windowMeta)
+
+    -- ── onSuccess: build window and replay all queued calls ──────────────────
+    local function onSuccess()
+        realWindow = Window.new(self._screenGui, config, theme)
+        table.insert(self._windows, realWindow)
+        resolved = true
+
+        -- Replay all queued calls in order
+        for _, entry in ipairs(tabQueue) do
+            if entry.isGeneric then
+                local fn = realWindow[entry.method]
+                if type(fn) == "function" then
+                    pcall(fn, realWindow, table.unpack(entry.args))
+                end
+            elseif entry.method == "CreateTab" then
+                local realTab = realWindow:CreateTab(entry.args[1])
+                if entry._replayFn then
+                    entry._replayFn(realTab)
+                end
+            end
+        end
+        tabQueue = {}
+    end
+
+    KeySystem.Create(self._screenGui, config.KeySystem, theme, onSuccess)
+
+    return windowProxy
 end
 
 -- Send a notification from the framework level
@@ -2975,22 +3076,26 @@ function Mixusfield:SetTheme(themeName, accent)
                             if n:sub(1,7)  == "Button_" or n:sub(1,7) == "Toggle_"
                             or n:sub(1,7)  == "Slider_" or n:sub(1,9) == "Dropdown_"
                             or n:sub(1,8)  == "Textbox_" or n:sub(1,8) == "Keybind_"
-                            or n:sub(1,9)  == "Section_" or n:sub(1,9) == "Paragraph"
-                            or n:sub(1,6)  == "Label_" then
+                            or n:sub(1,9)  == "Paragraph" then
+                                Utility.Tween(comp, Utility.TI(0.3), { BackgroundColor3 = theme.Surface })
+                                for _, s in ipairs(comp:GetChildren()) do
+                                    if s:IsA("UIStroke") then s.Color = theme.Border end
+                                end
+                            elseif n:sub(1,8) == "Section_" then
                                 Utility.Tween(comp, Utility.TI(0.3), { BackgroundColor3 = theme.SurfaceAlt })
                                 for _, s in ipairs(comp:GetChildren()) do
                                     if s:IsA("UIStroke") then s.Color = theme.Border end
                                 end
+                            elseif n:sub(1,6) == "Label_" then
+                                -- Labels are transparent, no bg change needed
                             end
                         end
                         if comp:IsA("TextLabel") then
                             local fn = comp.Font
                             if fn == Enum.Font.GothamBold then
-                                Utility.Tween(comp, Utility.TI(0.3), { TextColor3 = theme.Text })
-                            elseif fn == Enum.Font.GothamSemibold then
                                 Utility.Tween(comp, Utility.TI(0.3), { TextColor3 = theme.TextDim })
                             else
-                                Utility.Tween(comp, Utility.TI(0.3), { TextColor3 = theme.TextDim })
+                                Utility.Tween(comp, Utility.TI(0.3), { TextColor3 = theme.TextMuted })
                             end
                         end
                     end
