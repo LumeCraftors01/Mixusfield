@@ -493,8 +493,10 @@ NotificationSystem._container = nil
 NotificationSystem._maxVisible = 5
 NotificationSystem._spacing    = 8
 
-local NOTIF_HEIGHT = 72
-local NOTIF_WIDTH  = 320
+local NOTIF_HEIGHT  = 72
+local NOTIF_WIDTH   = 320
+local NOTIF_PADDING = 12   -- gap from screen edge
+local NOTIF_GAP     = 8    -- gap between toasts
 
 local NotifTypeColors = {
     success = "Success",
@@ -513,21 +515,32 @@ local NotifTypeIcons = {
 function NotificationSystem.Init(screenGui, theme)
     NotificationSystem._theme = theme
 
+    -- Container anchored to bottom-right corner with padding
     local container = Builder.Frame({
         Name              = "NotificationContainer",
         BackgroundTransparency = 1,
         Size              = UDim2.fromOffset(NOTIF_WIDTH, 0),
-        Position          = UDim2.new(1, -(NOTIF_WIDTH + 16), 1, -16),
+        -- Anchor bottom-right; Y=0 means the bottom edge of container = bottom of screen
+        Position          = UDim2.new(1, -(NOTIF_WIDTH + NOTIF_PADDING), 1, -NOTIF_PADDING),
         AnchorPoint       = Vector2.new(0, 1),
         ZIndex            = 100,
         ClipsDescendants  = false,
+        AutomaticSize     = Enum.AutomaticSize.Y,
     }, screenGui)
 
+    -- Notifications stack upward automatically via a reverse list layout
+    local layout = Instance.new("UIListLayout")
+    layout.SortOrder        = Enum.SortOrder.LayoutOrder
+    layout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+    layout.FillDirection    = Enum.FillDirection.Vertical
+    layout.Padding          = UDim.new(0, NOTIF_GAP)
+    layout.Parent           = container
+
     NotificationSystem._container = container
+    NotificationSystem._layout    = layout
 end
 
 function NotificationSystem.Send(config)
-    -- config: { Title, Content, Icon, Type, Duration, Sound }
     local theme    = NotificationSystem._theme
     local nType    = (config.Type or "info"):lower()
     local duration = config.Duration or 4
@@ -537,18 +550,16 @@ function NotificationSystem.Send(config)
     local container = NotificationSystem._container
     if not container then return end
 
-    -- Shift existing notifications upward
-    for _, n in ipairs(NotificationSystem._active) do
-        local newY = n.Frame.Position.Y.Offset - (NOTIF_HEIGHT + NotificationSystem._spacing)
-        Utility.Tween(n.Frame, Utility.TI(0.3), { Position = UDim2.fromOffset(0, newY) })
-    end
+    -- Assign layout order (newest = highest number = shown at bottom of stack visually = last in list)
+    NotificationSystem._orderCounter = (NotificationSystem._orderCounter or 0) + 1
+    local myOrder = NotificationSystem._orderCounter
 
     -- Create notification frame
     local frame = Builder.Frame({
         Name              = "Notification_" .. Utility.UID(),
         BackgroundColor3  = theme.Surface,
         Size              = UDim2.fromOffset(NOTIF_WIDTH, NOTIF_HEIGHT),
-        Position          = UDim2.fromOffset(0, 0),
+        LayoutOrder       = myOrder,
         ZIndex            = 101,
         ClipsDescendants  = false,
     }, container)
@@ -608,8 +619,8 @@ function NotificationSystem.Send(config)
     local progressBg = Builder.Frame({
         Name             = "ProgressBg",
         BackgroundColor3 = theme.Border,
-        Size             = UDim2.new(1, -16, 0, 2),
-        Position         = UDim2.new(0, 8, 1, -6),
+        Size             = UDim2.new(1, -16, 0, 3),
+        Position         = UDim2.new(0, 8, 1, -7),
         ZIndex           = 102,
     }, frame)
     Builder.Corner(2, progressBg)
@@ -629,13 +640,15 @@ function NotificationSystem.Send(config)
     })
 
     local entry = { Frame = frame }
-    table.insert(NotificationSystem._active, 1, entry)
+    table.insert(NotificationSystem._active, entry)
 
-    -- Trim overflow
+    -- Trim overflow (remove oldest = first in list)
     while #NotificationSystem._active > NotificationSystem._maxVisible do
-        local old = table.remove(NotificationSystem._active)
-        Utility.Tween(old.Frame, Utility.TI(0.25), { Position = UDim2.fromOffset(NOTIF_WIDTH + 20, old.Frame.Position.Y.Offset) })
-        task.delay(0.3, function() if old.Frame then old.Frame:Destroy() end end)
+        local old = table.remove(NotificationSystem._active, 1)
+        if old.Frame and old.Frame.Parent then
+            Utility.Tween(old.Frame, Utility.TI(0.25), { Position = UDim2.fromOffset(NOTIF_WIDTH + 20, 0) })
+            task.delay(0.3, function() if old.Frame then old.Frame:Destroy() end end)
+        end
     end
 
     -- Progress tween
@@ -643,19 +656,17 @@ function NotificationSystem.Send(config)
 
     -- Auto dismiss
     task.delay(duration, function()
-        -- Find and remove from active list
         for i, n in ipairs(NotificationSystem._active) do
-            if n == entry then
-                table.remove(NotificationSystem._active, i)
-                break
-            end
+            if n == entry then table.remove(NotificationSystem._active, i) break end
         end
-        Utility.Tween(frame, Utility.TI(0.3), {
-            Position = UDim2.fromOffset(NOTIF_WIDTH + 20, frame.Position.Y.Offset)
-        })
-        task.delay(0.35, function()
-            if frame then frame:Destroy() end
-        end)
+        if frame and frame.Parent then
+            Utility.Tween(frame, Utility.TI(0.3, Enum.EasingStyle.Quad), {
+                Position = UDim2.fromOffset(NOTIF_WIDTH + 20, 0),
+            })
+            task.delay(0.35, function()
+                if frame and frame.Parent then frame:Destroy() end
+            end)
+        end
     end)
 end
 
@@ -2510,10 +2521,9 @@ function Window:Show()
     if self._visible then return end
     self._visible = true
     self._root.Visible = true
-    self._root.BackgroundTransparency = 1
+    self._root.Size = UDim2.fromOffset(self._root.AbsoluteSize.X, self._savedHeight or 420)
     Utility.Tween(self._root, Utility.TI(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
         BackgroundTransparency = self._theme.Transparency,
-        Size = UDim2.fromOffset(self._root.AbsoluteSize.X, self._savedHeight or 420),
     })
 end
 
@@ -2522,12 +2532,13 @@ function Window:Hide()
     if not self._visible then return end
     self._visible = false
     self._savedHeight = self._root.AbsoluteSize.Y
-    Utility.Tween(self._root, Utility.TI(0.3, Enum.EasingStyle.Quad), {
+    Utility.Tween(self._root, Utility.TI(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
         BackgroundTransparency = 1,
-        Size = UDim2.fromOffset(self._root.AbsoluteSize.X, self._root.AbsoluteSize.Y * 0.9),
     })
-    task.delay(0.32, function()
-        self._root.Visible = false
+    task.delay(0.28, function()
+        if not self._visible then
+            self._root.Visible = false
+        end
     end)
 end
 
@@ -2873,11 +2884,134 @@ function Mixusfield:Notify(config)
     NotificationSystem.Send(config)
 end
 
--- Change theme on-the-fly
+-- Change theme on-the-fly — fully re-paints all open windows
 function Mixusfield:SetTheme(themeName, accent)
     local theme = ThemeManager.Set(themeName, accent)
-    -- Note: full live re-theming requires iterating all UI elements.
-    -- For production use, recreate the window. This returns the new theme table.
+
+    for _, win in ipairs(self._windows) do
+        -- Store new theme on window
+        win._theme = theme
+
+        local root    = win._root
+        local topBar  = win._topBar
+        local tabBar  = win._tabBar
+        local content = win._contentArea
+
+        if not (root and root.Parent) then continue end
+
+        -- Root window background
+        Utility.Tween(root, Utility.TI(0.3), {
+            BackgroundColor3       = theme.Background,
+            BackgroundTransparency = theme.Transparency,
+        })
+        -- Stroke on root
+        for _, v in ipairs(root:GetChildren()) do
+            if v:IsA("UIStroke") then v.Color = theme.Border end
+        end
+
+        -- Top bar
+        if topBar then
+            Utility.Tween(topBar, Utility.TI(0.3), { BackgroundColor3 = theme.TopBar })
+            for _, v in ipairs(topBar:GetChildren()) do
+                if v:IsA("Frame") and v.Size == UDim2.new(1,0,0,14) then
+                    v.BackgroundColor3 = theme.TopBar
+                end
+                if v:IsA("UIGradient") then
+                    v.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, Utility.LerpColor(theme.TopBar, theme.Accent, 0.08)),
+                        ColorSequenceKeypoint.new(1, theme.TopBar),
+                    })
+                end
+                -- Title / subtitle labels
+                if v:IsA("Frame") and v.Name ~= "TopBar" then
+                    for _, lbl in ipairs(v:GetChildren()) do
+                        if lbl:IsA("TextLabel") then
+                            if lbl.Font == Enum.Font.GothamBold then
+                                Utility.Tween(lbl, Utility.TI(0.3), { TextColor3 = theme.Text })
+                            else
+                                Utility.Tween(lbl, Utility.TI(0.3), { TextColor3 = theme.TextMuted })
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Tab bar
+        if tabBar then
+            Utility.Tween(tabBar, Utility.TI(0.3), { BackgroundColor3 = theme.TabBar })
+            for _, v in ipairs(tabBar:GetDescendants()) do
+                if v:IsA("Frame") and v.Name:sub(1,6) == "TabBtn" then
+                    Utility.Tween(v, Utility.TI(0.3), { BackgroundColor3 = theme.TabBar })
+                end
+                if v:IsA("TextLabel") then
+                    Utility.Tween(v, Utility.TI(0.3), { TextColor3 = theme.TextDim })
+                end
+            end
+            -- Re-activate current tab highlight
+            for id, data in pairs(win._tabs) do
+                local isActive = (id == win._activeTab)
+                Utility.Tween(data.tabBtn, Utility.TI(0.3), {
+                    BackgroundColor3       = isActive and theme.TabActive or theme.TabBar,
+                    BackgroundTransparency = isActive and 0 or 1,
+                })
+                Utility.Tween(data.tabLabel, Utility.TI(0.3), {
+                    TextColor3 = isActive and theme.Accent or theme.TextDim,
+                })
+                Utility.Tween(data.indicator, Utility.TI(0.3), {
+                    BackgroundColor3 = theme.Accent,
+                })
+            end
+        end
+
+        -- Walk all content frames and repaint components
+        if content then
+            for _, page in ipairs(content:GetChildren()) do
+                if page:IsA("ScrollingFrame") then
+                    page.ScrollBarImageColor3 = theme.ScrollBar
+                    for _, comp in ipairs(page:GetDescendants()) do
+                        if comp:IsA("Frame") then
+                            local n = comp.Name
+                            if n:sub(1,7)  == "Button_" or n:sub(1,7) == "Toggle_"
+                            or n:sub(1,7)  == "Slider_" or n:sub(1,9) == "Dropdown_"
+                            or n:sub(1,8)  == "Textbox_" or n:sub(1,8) == "Keybind_"
+                            or n:sub(1,9)  == "Section_" or n:sub(1,9) == "Paragraph"
+                            or n:sub(1,6)  == "Label_" then
+                                Utility.Tween(comp, Utility.TI(0.3), { BackgroundColor3 = theme.SurfaceAlt })
+                                for _, s in ipairs(comp:GetChildren()) do
+                                    if s:IsA("UIStroke") then s.Color = theme.Border end
+                                end
+                            end
+                        end
+                        if comp:IsA("TextLabel") then
+                            local fn = comp.Font
+                            if fn == Enum.Font.GothamBold then
+                                Utility.Tween(comp, Utility.TI(0.3), { TextColor3 = theme.Text })
+                            elseif fn == Enum.Font.GothamSemibold then
+                                Utility.Tween(comp, Utility.TI(0.3), { TextColor3 = theme.TextDim })
+                            else
+                                Utility.Tween(comp, Utility.TI(0.3), { TextColor3 = theme.TextDim })
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
+        -- Search bar
+        if win._searchBar then
+            Utility.Tween(win._searchBar, Utility.TI(0.3), { BackgroundColor3 = theme.Surface })
+            for _, s in ipairs(win._searchBar:GetChildren()) do
+                if s:IsA("UIStroke") then s.Color = theme.Border end
+            end
+        end
+
+        -- Restore button
+        if win._restoreBtn then
+            Utility.Tween(win._restoreBtn, Utility.TI(0.3), { BackgroundColor3 = theme.Surface })
+        end
+    end
+
     return theme
 end
 
