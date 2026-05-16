@@ -168,7 +168,6 @@ function Utility.Spring(instance, props, stiffness, damping, speed)
         local currents   = {}
 
         for k, target in pairs(props) do
-            local cur = pcall(function() return instance[k] end)
             if typeof(target) == "number" then
                 currents[k]   = instance[k] or 0
                 velocities[k] = 0
@@ -1720,8 +1719,6 @@ function KeySystem.Create(screenGui, config, theme, onSuccess)
         task.spawn(function()
             local success = false
             if config.Verify then
-                success = Utility.SafeCall(config.Verify, key) == true
-                -- If SafeCall returns nil (no return), treat as false
                 local ok, result = pcall(config.Verify, key)
                 success = ok and result == true
             elseif config.Key then
@@ -2620,9 +2617,6 @@ function Components.Paragraph(parent, config, theme, tabId)
     return frame, api
 end
 
-    return frame
-end
-
 -- ── Divider ──────────────────────────────────────────────────────────────────
 function Components.Divider(parent, config, theme)
     --[[
@@ -2812,7 +2806,6 @@ function Components.ColorPicker(parent, config, theme, tabId)
         TextColor3 = theme.TextMuted,
         Font     = Enum.Font.GothamMedium,
         TextSize = 10,
-        Size     = UDim2.fromOffset(50, 1, 0, COMP_HEIGHT),
         Size     = UDim2.new(0, 50, 1, 0),
         Position = UDim2.new(1, -50, 0, 0),
         TextXAlignment = Enum.TextXAlignment.Right,
@@ -2843,9 +2836,15 @@ function Components.ColorPicker(parent, config, theme, tabId)
 
     -- White (S) gradient overlay
     Builder.Gradient(
-        ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.new(1,1,1)), ColorSequenceKeypoint.new(1, Color3.new(1,1,1,0)) }),
+        ColorSequence.new({ ColorSequenceKeypoint.new(0, Color3.new(1,1,1)), ColorSequenceKeypoint.new(1, Color3.new(1,1,1)) }),
         0, svCanvas
     )
+    do
+        local grad = svCanvas:FindFirstChildWhichIsA("UIGradient")
+        if grad then
+            grad.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) })
+        end
+    end
     -- Black (V) gradient overlay via second frame
     local vOverlay = Builder.Frame({
         BackgroundColor3 = Color3.new(0,0,0),
@@ -3971,11 +3970,13 @@ function Window:CreateTab(config)
             for _, child in ipairs(page:GetChildren()) do
                 if child:IsA("Frame") then table.insert(children, child) end
             end
+            local origTransparencies = {}
             for _, child in ipairs(children) do
+                origTransparencies[child] = child.BackgroundTransparency
                 child.BackgroundTransparency = child.BackgroundTransparency == 1 and 1 or 0.6
             end
             Utility.Stagger(children, 0.035, function(f, i)
-                local origTrans = (f.Name:sub(1,7) == "Section" or f.BackgroundColor3 == Color3.new(0,0,0)) and 1 or 0
+                local origTrans = origTransparencies[f] or 0
                 f.Position = UDim2.new(f.Position.X.Scale, f.Position.X.Offset + 16, f.Position.Y.Scale, f.Position.Y.Offset)
                 Utility.Tween(f, Utility.TI(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out), {
                     Position = UDim2.new(f.Position.X.Scale, f.Position.X.Offset - 16, f.Position.Y.Scale, f.Position.Y.Offset),
@@ -4076,10 +4077,6 @@ function Mixusfield:_Init()
     self._initialized = true
 
     -- Prevent duplicate ScreenGui
-    local existingGui = pcall(function()
-        return CoreGui:FindFirstChild("MixusfieldGui")
-    end)
-
     if CoreGui:FindFirstChild("MixusfieldGui") then
         CoreGui:FindFirstChild("MixusfieldGui"):Destroy()
     end
