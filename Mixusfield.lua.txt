@@ -2,7 +2,19 @@
     ╔══════════════════════════════════════════════════════════════════╗
     ║                     MIXUSFIELD UI FRAMEWORK                     ║
     ║              Modern • Responsive • Lightweight • Clean          ║
-    ║                         Version 2.0.0                          ║
+    ║                         Version 2.0.1                          ║
+    ╠══════════════════════════════════════════════════════════════════╣
+    ║  v2.0.1 FIXES:                                                  ║
+    ║   • _Init: safe CoreGui parenting with proper nil fallback       ║
+    ║   • CreateWindow: nil-guard on failed ScreenGui init             ║
+    ║   • Notify / Alert: nil-guard on _screenGui                      ║
+    ║   • Utility.Tween: nil-instance guard (no more nil-call errors)  ║
+    ║   • Builder.Shadow: pcall-guarded asset load (fixes anim errors) ║
+    ║   • Slider: global InputChanged/Ended connections now tracked     ║
+    ║     and cleaned up on frame destroy (no memory leaks)            ║
+    ║   • SetTheme: removed bare `continue` (Luau compat) → pcall wrap ║
+    ║   • Mouse: safe pcall init (works in all executor environments)   ║
+    ║   • Destroy: pcall-protected window/gui teardown                 ║
     ╚══════════════════════════════════════════════════════════════════╝
 
     A fully polished, lightweight, responsive, and production-ready
@@ -46,7 +58,8 @@ local HttpService        = game:GetService("HttpService")
 local CoreGui            = game:GetService("CoreGui")
 
 local LocalPlayer        = Players.LocalPlayer
-local Mouse              = LocalPlayer:GetMouse()
+local Mouse              = nil
+pcall(function() Mouse = LocalPlayer:GetMouse() end)
 local Camera             = workspace.CurrentCamera
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -56,6 +69,7 @@ local Utility = {}
 
 -- Safe tween helper – returns the tween so caller can :Play() or :Cancel()
 function Utility.Tween(instance, info, properties)
+    if not instance or not instance.Parent then return end
     local ok, tween = pcall(function()
         return TweenService:Create(instance, info, properties)
     end)
@@ -660,11 +674,14 @@ function Builder.Shadow(parent, size, color, transparency)
     shadow.Size                 = UDim2.new(1, size or 20, 1, size or 20)
     shadow.Position             = UDim2.new(0, -(size or 20)/2, 0, -(size or 20)/2 + 4)
     shadow.ZIndex               = (parent.ZIndex or 1) - 1
-    shadow.Image                = "rbxassetid://5028857084"
+    -- Use pcall to safely set image; avoids animation-load errors on restricted clients
+    pcall(function()
+        shadow.Image              = "rbxassetid://5028857084"
+        shadow.ScaleType          = Enum.ScaleType.Slice
+        shadow.SliceCenter        = Rect.new(24, 24, 276, 276)
+    end)
     shadow.ImageColor3          = color or Color3.new(0,0,0)
     shadow.ImageTransparency    = transparency or 0.6
-    shadow.ScaleType            = Enum.ScaleType.Slice
-    shadow.SliceCenter          = Rect.new(24, 24, 276, 276)
     shadow.Parent               = parent
     return shadow
 end
@@ -2056,10 +2073,12 @@ function Components.Slider(parent, config, theme, tabId)
     Builder.Stroke(theme.Accent, 2, thumb)
 
     local draggingSlider = false
+    local sliderConns = ConnectionManager.new()
 
     local function setSliderValue(rawX)
         local trackAbsX = trackBg.AbsolutePosition.X
         local trackAbsW = trackBg.AbsoluteSize.X
+        if trackAbsW == 0 then return end
         local t = math.clamp((rawX - trackAbsX) / trackAbsW, 0, 1)
         local newVal = snap(min + t * (max - min))
         if newVal ~= val then
@@ -2076,29 +2095,32 @@ function Components.Slider(parent, config, theme, tabId)
         Text="", BackgroundTransparency=1, Size=UDim2.new(1, 0, 0, 28), Position=UDim2.new(0,0,1,-28), ZIndex=9,
     }, frame)
 
-    sliderBtn.InputBegan:Connect(function(input)
+    sliderConns:Add(sliderBtn.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             draggingSlider = true
             setSliderValue(input.Position.X)
             Utility.Tween(thumb, Utility.TI(0.1), { Size = UDim2.fromOffset(20, 20) })
         end
-    end)
+    end))
 
-    UserInputService.InputChanged:Connect(function(input)
+    sliderConns:Add(UserInputService.InputChanged:Connect(function(input)
         if not draggingSlider then return end
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             setSliderValue(input.Position.X)
         end
-    end)
+    end))
 
-    UserInputService.InputEnded:Connect(function(input)
+    sliderConns:Add(UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             if draggingSlider then
                 draggingSlider = false
                 Utility.Tween(thumb, Utility.TI(0.15), { Size = UDim2.fromOffset(16, 16) })
             end
         end
-    end)
+    end))
+
+    -- Clean up slider connections when frame is destroyed
+    frame.Destroying:Connect(function() sliderConns:Clean() end)
 
     SearchRegistry.Register(tabId, frame, config.Name or "Slider")
 
@@ -4077,27 +4099,35 @@ function Mixusfield:_Init()
     self._initialized = true
 
     -- Prevent duplicate ScreenGui
-    if CoreGui:FindFirstChild("MixusfieldGui") then
-        CoreGui:FindFirstChild("MixusfieldGui"):Destroy()
+    local existing = CoreGui:FindFirstChild("MixusfieldGui")
+    if existing then
+        pcall(function() existing:Destroy() end)
     end
 
     -- Create main ScreenGui
-    self._screenGui = Instance.new("ScreenGui")
-    self._screenGui.Name            = "MixusfieldGui"
-    self._screenGui.ResetOnSpawn    = false
-    self._screenGui.IgnoreGuiInset  = true
-    self._screenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Global
-    self._screenGui.DisplayOrder    = 999
+    local sg = Instance.new("ScreenGui")
+    sg.Name            = "MixusfieldGui"
+    sg.ResetOnSpawn    = false
+    sg.IgnoreGuiInset  = true
+    sg.ZIndexBehavior  = Enum.ZIndexBehavior.Global
+    sg.DisplayOrder    = 999
 
     -- Parent to CoreGui with fallback to PlayerGui
     local ok = pcall(function()
-        self._screenGui.Parent = CoreGui
+        sg.Parent = CoreGui
     end)
     if not ok then
-        self._screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+        local playerGui = LocalPlayer:WaitForChild("PlayerGui", 10)
+        if playerGui then
+            sg.Parent = playerGui
+        else
+            warn("[Mixusfield] Could not find PlayerGui – ScreenGui may not display.")
+            sg.Parent = game:GetService("CoreGui")
+        end
     end
+    self._screenGui = sg
 
-    -- Initialize notification system
+    -- Initialize notification and tooltip systems
     local theme = ThemeManager.Get()
     NotificationSystem.Init(self._screenGui, theme)
     TooltipSystem.Init(self._screenGui)
@@ -4106,6 +4136,10 @@ end
 -- Create a new window
 function Mixusfield:CreateWindow(config)
     self:_Init()
+    if not self._screenGui then
+        warn("[Mixusfield] CreateWindow: ScreenGui failed to initialize.")
+        return setmetatable({}, { __index = function() return function() return {} end end })
+    end
 
     config = config or {}
 
@@ -4242,6 +4276,7 @@ function Mixusfield:SetTheme(themeName, accent)
     local theme = ThemeManager.Set(themeName, accent)
 
     for _, win in ipairs(self._windows) do
+        pcall(function()
         -- Store new theme on window
         win._theme = theme
 
@@ -4250,7 +4285,7 @@ function Mixusfield:SetTheme(themeName, accent)
         local tabBar  = win._tabBar
         local content = win._contentArea
 
-        if not (root and root.Parent) then continue end
+        if not (root and root.Parent) then return end
 
         -- Root window background
         Utility.Tween(root, Utility.TI(0.3), {
@@ -4367,6 +4402,7 @@ function Mixusfield:SetTheme(themeName, accent)
         if win._restoreBtn then
             Utility.Tween(win._restoreBtn, Utility.TI(0.3), { BackgroundColor3 = theme.Surface })
         end
+        end) -- end pcall
     end
 
     return theme
@@ -4375,12 +4411,14 @@ end
 -- Send a global notification
 function Mixusfield:Notify(config)
     self:_Init()
+    if not self._screenGui then return end
     NotificationSystem.Send(config)
 end
 
 -- Show a modal alert / confirm dialog
 function Mixusfield:Alert(config)
     self:_Init()
+    if not self._screenGui then return end
     local theme = ThemeManager.Get()
     return AlertSystem.Show(self._screenGui, config, theme)
 end
@@ -4388,12 +4426,12 @@ end
 -- Destroy all windows and clean up everything
 function Mixusfield:Destroy()
     for _, win in ipairs(self._windows) do
-        win:Destroy()
+        pcall(function() win:Destroy() end)
     end
     self._windows = {}
     SearchRegistry.Clear()
     if self._screenGui then
-        self._screenGui:Destroy()
+        pcall(function() self._screenGui:Destroy() end)
         self._screenGui = nil
     end
     self._initialized = false
@@ -4410,7 +4448,7 @@ return Mixusfield
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 local Mixusfield = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/LumeCraftors01/Mixusfield/refs/heads/main/Mixusfield.lua"
+    "https://raw.githubusercontent.com/LumeCraftors01/Mixusfield/refs/heads/main/Mixusfield.lua.txt"
 ))()
 
 -- ── Create window ─────────────────────────────
