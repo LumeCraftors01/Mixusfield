@@ -17,7 +17,7 @@
 -- [[ LOAD FRAMEWORK ]]
 -- ─────────────────────────────────────────────────────────────────────────────
 local Mixusfield = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/LumeCraftors01/Mixusfield/refs/heads/main/Mixusfield.lua"
+    "https://raw.githubusercontent.com/LumeCraftors01/Mixusfield/refs/heads/main/Mixusfield.lua.txt"
 ))()
 
 -- ─────────────────────────────────────────────────────────────────────────────
