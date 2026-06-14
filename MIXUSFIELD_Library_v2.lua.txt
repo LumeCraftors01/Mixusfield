@@ -1,0 +1,2680 @@
+-- ============================================================
+-- MIXUSFIELD Library  v2.0
+-- A Roblox UI Library by LumeCraftor
+-- New in v2: Key System, Theme Engine, better strokes/colors
+-- ============================================================
+
+-- /// Services
+local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local TweenService     = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local VirtualUser      = game:GetService("VirtualUser")
+
+local Player = Players.LocalPlayer
+
+-- ============================================================
+-- /// THEME ENGINE
+-- All colors live here. Changing a theme updates every element
+-- that was created with it via a listener table.
+-- ============================================================
+
+-- Built-in preset themes (Name = { Accent, Background, Surface, Text, SubText, Stroke })
+local THEMES = {
+  Crimson = {
+    Accent      = Color3.fromRGB(220,  40,  40),   -- primary highlight color
+    Background  = Color3.fromRGB( 12,  12,  12),   -- main window backdrop
+    Surface     = Color3.fromRGB( 22,  22,  22),   -- element face color
+    Text        = Color3.fromRGB(235, 235, 235),   -- primary label text
+    SubText     = Color3.fromRGB(130, 130, 130),   -- secondary / description text
+    Stroke      = Color3.fromRGB( 55,  55,  55),   -- border/UIStroke color
+  },
+  Ocean = {
+    Accent      = Color3.fromRGB( 30, 140, 255),
+    Background  = Color3.fromRGB(  8,  14,  26),
+    Surface     = Color3.fromRGB( 15,  25,  45),
+    Text        = Color3.fromRGB(220, 235, 255),
+    SubText     = Color3.fromRGB(100, 130, 180),
+    Stroke      = Color3.fromRGB( 35,  60, 100),
+  },
+  Emerald = {
+    Accent      = Color3.fromRGB( 30, 200, 100),
+    Background  = Color3.fromRGB(  8,  16,  12),
+    Surface     = Color3.fromRGB( 14,  28,  20),
+    Text        = Color3.fromRGB(215, 245, 225),
+    SubText     = Color3.fromRGB( 90, 160, 110),
+    Stroke      = Color3.fromRGB( 30,  80,  50),
+  },
+  Violet = {
+    Accent      = Color3.fromRGB(160,  80, 255),
+    Background  = Color3.fromRGB( 12,   8,  22),
+    Surface     = Color3.fromRGB( 22,  14,  38),
+    Text        = Color3.fromRGB(235, 220, 255),
+    SubText     = Color3.fromRGB(130, 100, 180),
+    Stroke      = Color3.fromRGB( 60,  35, 100),
+  },
+  Mono = {
+    Accent      = Color3.fromRGB(200, 200, 200),
+    Background  = Color3.fromRGB( 10,  10,  10),
+    Surface     = Color3.fromRGB( 22,  22,  22),
+    Text        = Color3.fromRGB(245, 245, 245),
+    SubText     = Color3.fromRGB(140, 140, 140),
+    Stroke      = Color3.fromRGB( 60,  60,  60),
+  },
+}
+
+-- Active theme data (starts as Crimson; changed via SetTheme)
+local Theme = {}
+for k, v in pairs(THEMES.Crimson) do Theme[k] = v end
+
+-- Every object that should react to theme changes registers here.
+-- Format: { Instance = guiObject, Property = "BackgroundColor3", Key = "Accent" }
+local ThemeListeners = {}
+
+-- Registers a GUI property to update whenever the theme changes.
+-- @param inst   GuiObject to update
+-- @param prop   Property name string (e.g. "BackgroundColor3")
+-- @param key    Theme key string (e.g. "Accent")
+local function ThemeBind(inst, prop, key)
+  table.insert(ThemeListeners, { Instance = inst, Property = prop, Key = key })
+  -- Apply immediately so the element is correctly colored at creation.
+  if inst and inst.Parent then
+    inst[prop] = Theme[key]
+  end
+end
+
+-- ============================================================
+-- /// CUSTOM UTILITIES
+-- ============================================================
+
+local Custom = {}
+
+-- Shorthand: create any Instance, set properties, optionally parent it.
+-- @param Name       ClassName string
+-- @param Properties key-value table of properties
+-- @param Parent     optional parent Instance
+function Custom:Create(Name, Properties, Parent)
+  local inst = Instance.new(Name)
+  for i, v in pairs(Properties) do
+    inst[i] = v
+  end
+  if Parent then inst.Parent = Parent end
+  return inst
+end
+
+-- Keeps the session alive by simulating a button press when the player idles.
+function Custom:EnabledAFK()
+  Player.Idled:Connect(function()
+    VirtualUser:Button2Down(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+    task.wait(1)
+    VirtualUser:Button2Up(Vector2.new(0, 0), workspace.CurrentCamera.CFrame)
+  end)
+end
+
+Custom:EnabledAFK()
+
+-- Helper: resolve the safest parent for any ScreenGui (exploit or Studio context).
+local function GetGuiParent()
+  if RunService:IsStudio() then
+    return Player.PlayerGui
+  end
+  return (pcall(function() return gethui() end) and gethui())
+    or (pcall(function() return cloneref(game:GetService("CoreGui")) end) and cloneref(game:GetService("CoreGui")))
+    or game:GetService("CoreGui")
+end
+
+-- ============================================================
+-- /// RIPPLE EFFECT
+-- Plays a material-design circle ripple on any button/frame.
+-- @param Button  The GuiObject to ripple inside
+-- @param X, Y   Screen coordinates of the click/touch
+-- ============================================================
+local function CircleClick(Button, X, Y)
+  task.spawn(function()
+    Button.ClipsDescendants = true
+
+    local Circle = Instance.new("ImageLabel")
+    Circle.Image             = "rbxassetid://106471194043211"
+    Circle.ImageColor3       = Color3.fromRGB(80, 80, 80)
+    Circle.ImageTransparency = 0.9
+    Circle.BackgroundTransparency = 1
+    Circle.ZIndex            = 10
+    Circle.Name              = "Ripple"
+    Circle.Parent            = Button
+
+    -- Position the circle at the click point relative to the button.
+    local nx = X - Button.AbsolutePosition.X
+    local ny = Y - Button.AbsolutePosition.Y
+    Circle.Position = UDim2.new(0, nx, 0, ny)
+
+    local Size = math.max(Button.AbsoluteSize.X, Button.AbsoluteSize.Y) * 1.5
+    local info = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+    TweenService:Create(Circle, info, {
+      Size     = UDim2.new(0, Size, 0, Size),
+      Position = UDim2.new(0.5, -Size / 2, 0.5, -Size / 2),
+    }):Play()
+
+    task.wait(0.45)
+
+    -- Fade out the circle after the expand finishes.
+    for i = 1, 10 do
+      Circle.ImageTransparency = Circle.ImageTransparency + 0.01
+      task.wait(0.05)
+    end
+    Circle:Destroy()
+  end)
+end
+
+-- ============================================================
+-- /// DRAGGABLE HELPER
+-- Makes `object` draggable by clicking and dragging `topbar`.
+-- ============================================================
+local function MakeDraggable(topbar, object)
+  local dragging, dragStart, startPos = false, nil, nil
+
+  topbar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+    or input.UserInputType == Enum.UserInputType.Touch then
+      dragging  = true
+      dragStart = input.Position
+      startPos  = object.Position
+
+      input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+          dragging = false
+        end
+      end)
+    end
+  end)
+
+  topbar.InputChanged:Connect(function(input)
+    if dragging and (
+      input.UserInputType == Enum.UserInputType.MouseMovement
+      or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+      local delta = input.Position - dragStart
+      object.Position = UDim2.new(
+        startPos.X.Scale, startPos.X.Offset + delta.X,
+        startPos.Y.Scale, startPos.Y.Offset + delta.Y
+      )
+    end
+  end)
+end
+
+-- ============================================================
+-- /// MINIMIZE TOGGLE BUTTON
+-- The small draggable button that re-opens a minimized window.
+-- ============================================================
+local function CreateOpenCloseButton()
+  local gui = Custom:Create("ScreenGui", {
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+  }, GetGuiParent())
+
+  local btn = Custom:Create("ImageButton", {
+    BackgroundColor3    = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 1,
+    BorderColor3        = Color3.fromRGB(255, 0, 0),
+    Position            = UDim2.new(0.1021, 0, 0.0743, 0),
+    Size                = UDim2.new(0, 59, 0, 49),
+    Image               = "rbxassetid://72042293953856",
+    Visible             = false,
+  }, gui)
+
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 9) }, btn)
+
+  -- The minimize button is itself draggable so users can reposition it.
+  local dragging, dragStart, startPos = false, nil, nil
+  btn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch
+    or input.UserInputType == Enum.UserInputType.MouseButton1 then
+      dragging  = true
+      dragStart = input.Position
+      startPos  = btn.Position
+      input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+          dragging = false
+        end
+      end)
+    end
+  end)
+
+  btn.InputChanged:Connect(function(input)
+    if dragging and (
+      input.UserInputType == Enum.UserInputType.MouseMovement
+      or input.UserInputType == Enum.UserInputType.Touch
+    ) then
+      local delta = input.Position - dragStart
+      btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+  end)
+
+  return btn
+end
+
+local Open_Close = CreateOpenCloseButton()
+
+-- ============================================================
+-- /// MAIN LIBRARY TABLE
+-- ============================================================
+local MIXUSFIELD_Library = {}
+MIXUSFIELD_Library.Unloaded = false
+
+-- ============================================================
+-- /// THEME SYSTEM – PUBLIC API
+-- Call MIXUSFIELD_Library:SetTheme("Ocean") from any script.
+-- You can also pass a custom table of colors.
+-- ============================================================
+
+-- Sets the active theme and re-colors every registered element.
+-- @param nameOrTable  string preset name  OR  custom { Accent=…, … } table
+function MIXUSFIELD_Library:SetTheme(nameOrTable)
+  local newTheme
+
+  if type(nameOrTable) == "string" then
+    -- Use a built-in preset by name (case-insensitive lookup).
+    for k, v in pairs(THEMES) do
+      if k:lower() == nameOrTable:lower() then
+        newTheme = v
+        break
+      end
+    end
+    if not newTheme then
+      warn("[MIXUSFIELD] Unknown theme: " .. tostring(nameOrTable))
+      return
+    end
+  elseif type(nameOrTable) == "table" then
+    -- Accept a fully or partially custom color table.
+    newTheme = nameOrTable
+  else
+    warn("[MIXUSFIELD] SetTheme expects a string or color table.")
+    return
+  end
+
+  -- Copy new values into the shared Theme table.
+  for k, v in pairs(newTheme) do
+    Theme[k] = v
+  end
+
+  -- Propagate to every registered element.
+  local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+  for _, entry in ipairs(ThemeListeners) do
+    local ok = pcall(function()
+      if entry.Instance and entry.Instance.Parent then
+        -- Tween color properties; other properties set instantly.
+        local propType = typeof(entry.Instance[entry.Property])
+        if propType == "Color3" then
+          TweenService:Create(entry.Instance, tweenInfo, {
+            [entry.Property] = Theme[entry.Key]
+          }):Play()
+        else
+          entry.Instance[entry.Property] = Theme[entry.Key]
+        end
+      end
+    end)
+    if not ok then
+      -- Element was destroyed; silently skip.
+    end
+  end
+end
+
+-- Returns a read-only copy of all available preset theme names.
+function MIXUSFIELD_Library:GetThemeNames()
+  local names = {}
+  for k in pairs(THEMES) do
+    table.insert(names, k)
+  end
+  return names
+end
+
+-- Registers a custom theme so it can be used via :SetTheme("MyTheme").
+-- @param name   string identifier
+-- @param colors { Accent, Background, Surface, Text, SubText, Stroke }
+function MIXUSFIELD_Library:RegisterTheme(name, colors)
+  THEMES[name] = colors
+end
+
+-- ============================================================
+-- /// KEY SYSTEM
+-- Blocks the UI until the correct key is entered.
+-- Config keys:
+--   Key       (string)  – the secret passphrase
+--   Title     (string)  – window title shown to the user
+--   SubTitle  (string)  – small subtitle/game name
+--   Note      (string)  – hint or extra info text
+--   Callback  (fn)      – fired when the correct key is accepted
+-- ============================================================
+
+-- Shows the key-entry screen. Returns a Funcs table with :Close().
+-- The real UI (passed via `onSuccess`) is shown only after the correct key.
+function MIXUSFIELD_Library:KeySystem(Config, onSuccess)
+  local ValidKey  = Config.Key      or ""
+  local Title     = Config.Title    or "MIXUSFIELD"
+  local SubTitle  = Config.SubTitle or "Key Required"
+  local Note      = Config.Note     or "Enter the key to access this script."
+  local Callback  = Config.Callback or function() end
+
+  -- Build a dedicated ScreenGui for the key system, separate from the main UI.
+  local KeyGui = Custom:Create("ScreenGui", {
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+  }, GetGuiParent())
+
+  -- Full-screen dark overlay so nothing behind is clickable.
+  local Overlay = Custom:Create("Frame", {
+    Size                = UDim2.new(1, 0, 1, 0),
+    BackgroundColor3    = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 0.4,
+    BorderSizePixel     = 0,
+    Name                = "Overlay",
+  }, KeyGui)
+
+  -- Central card that holds all key-system controls.
+  local Card = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(0.5, 0.5),
+    Position            = UDim2.new(0.5, 0, 0.5, 0),
+    Size                = UDim2.new(0, 360, 0, 200),
+    BackgroundColor3    = Theme.Background,
+    BackgroundTransparency = 0,
+    BorderSizePixel     = 0,
+    Name                = "KeyCard",
+  }, Overlay)
+  ThemeBind(Card, "BackgroundColor3", "Background")
+
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 10) }, Card)
+
+  -- Accent-colored outline on the card.
+  local CardStroke = Custom:Create("UIStroke", {
+    Color     = Theme.Accent,
+    Thickness = 1.8,
+  }, Card)
+  ThemeBind(CardStroke, "Color", "Accent")
+
+  -- Title label at the top of the card.
+  local KeyTitle = Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = Title,
+    TextColor3          = Theme.Text,
+    TextSize            = 16,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 14, 0, 12),
+    Size                = UDim2.new(1, -28, 0, 18),
+    Name                = "KeyTitle",
+  }, Card)
+  ThemeBind(KeyTitle, "TextColor3", "Text")
+
+  -- Colored subtitle / game name below the title.
+  local KeySub = Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = SubTitle,
+    TextColor3          = Theme.Accent,
+    TextSize            = 13,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 14, 0, 32),
+    Size                = UDim2.new(1, -28, 0, 14),
+    Name                = "KeySub",
+  }, Card)
+  ThemeBind(KeySub, "TextColor3", "Accent")
+
+  -- Thin divider line beneath the header area.
+  local Divider = Custom:Create("Frame", {
+    BackgroundColor3    = Theme.Stroke,
+    BackgroundTransparency = 0,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 0, 0, 52),
+    Size                = UDim2.new(1, 0, 0, 1),
+    Name                = "Divider",
+  }, Card)
+  ThemeBind(Divider, "BackgroundColor3", "Stroke")
+
+  -- Note / hint text in the middle of the card.
+  local KeyNote = Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = Note,
+    TextColor3          = Theme.SubText,
+    TextSize            = 12,
+    TextWrapped         = true,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 14, 0, 60),
+    Size                = UDim2.new(1, -28, 0, 30),
+    Name                = "KeyNote",
+  }, Card)
+  ThemeBind(KeyNote, "TextColor3", "SubText")
+
+  -- Input field background frame.
+  local InputFrame = Custom:Create("Frame", {
+    BackgroundColor3    = Theme.Surface,
+    BackgroundTransparency = 0,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 14, 0, 100),
+    Size                = UDim2.new(1, -100, 0, 30),
+    Name                = "KeyInputFrame",
+  }, Card)
+  ThemeBind(InputFrame, "BackgroundColor3", "Surface")
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 6) }, InputFrame)
+
+  -- Stroke on the input box to make it stand out.
+  local InputStroke = Custom:Create("UIStroke", {
+    Color       = Theme.Stroke,
+    Thickness   = 1.2,
+  }, InputFrame)
+  ThemeBind(InputStroke, "Color", "Stroke")
+
+  -- The actual TextBox the user types into.
+  local KeyInput = Custom:Create("TextBox", {
+    Font                = Enum.Font.GothamBold,
+    PlaceholderText     = "Enter key here...",
+    PlaceholderColor3   = Theme.SubText,
+    Text                = "",
+    TextColor3          = Theme.Text,
+    TextSize            = 13,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 8, 0, 0),
+    Size                = UDim2.new(1, -16, 1, 0),
+    Name                = "KeyInput",
+    ClearTextOnFocus    = false,
+  }, InputFrame)
+  ThemeBind(KeyInput, "TextColor3", "Text")
+  ThemeBind(KeyInput, "PlaceholderColor3", "SubText")
+
+  -- "Submit" button to the right of the input.
+  local SubmitBtn = Custom:Create("TextButton", {
+    Font                = Enum.Font.GothamBold,
+    Text                = "Submit",
+    TextColor3          = Theme.Text,
+    TextSize            = 13,
+    BackgroundColor3    = Theme.Accent,
+    BackgroundTransparency = 0,
+    BorderSizePixel     = 0,
+    AnchorPoint         = Vector2.new(1, 0),
+    Position            = UDim2.new(1, -14, 0, 100),
+    Size                = UDim2.new(0, 72, 0, 30),
+    Name                = "SubmitBtn",
+  }, Card)
+  ThemeBind(SubmitBtn, "BackgroundColor3", "Accent")
+  ThemeBind(SubmitBtn, "TextColor3", "Text")
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 6) }, SubmitBtn)
+
+  -- Status label shown below the input (wrong key / loading feedback).
+  local StatusLabel = Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = "",
+    TextColor3          = Color3.fromRGB(220, 60, 60),  -- error red; not theme-bound by design
+    TextSize            = 12,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 14, 0, 142),
+    Size                = UDim2.new(1, -28, 0, 14),
+    Name                = "StatusLabel",
+  }, Card)
+
+  -- Entrance animation: card slides up from slightly below center.
+  Card.Position = UDim2.new(0.5, 0, 0.6, 0)
+  TweenService:Create(Card, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+    Position = UDim2.new(0.5, 0, 0.5, 0)
+  }):Play()
+
+  local KeyFuncs = {}
+
+  -- Destroys the key screen (called internally on success or externally to cancel).
+  function KeyFuncs:Close()
+    TweenService:Create(Card, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+      BackgroundTransparency = 1,
+      Position = UDim2.new(0.5, 0, 0.4, 0),
+    }):Play()
+    task.wait(0.3)
+    KeyGui:Destroy()
+  end
+
+  -- Validates the entered key and either accepts or rejects it.
+  local function TryKey()
+    local entered = KeyInput.Text
+    if entered == ValidKey then
+      -- Correct key: notify the user, fire the callback, dismiss the screen.
+      StatusLabel.TextColor3 = Color3.fromRGB(60, 220, 100)
+      StatusLabel.Text       = "✓ Accepted! Loading..."
+
+      TweenService:Create(InputStroke, TweenInfo.new(0.2), {
+        Color = Color3.fromRGB(60, 220, 100)
+      }):Play()
+
+      task.wait(0.8)
+      Callback()
+      KeyFuncs:Close()
+
+      -- Signal the caller to proceed with building the real UI.
+      if type(onSuccess) == "function" then
+        onSuccess()
+      end
+    else
+      -- Wrong key: flash the input stroke red and show an error message.
+      StatusLabel.TextColor3 = Color3.fromRGB(220, 60, 60)
+      StatusLabel.Text       = "✗ Incorrect key. Try again."
+
+      TweenService:Create(InputStroke, TweenInfo.new(0.1), {
+        Color = Color3.fromRGB(220, 60, 60)
+      }):Play()
+
+      task.wait(0.5)
+
+      -- Reset the stroke color back to the theme default.
+      TweenService:Create(InputStroke, TweenInfo.new(0.2), {
+        Color = Theme.Stroke
+      }):Play()
+    end
+  end
+
+  -- Wire the submit button and Enter key to the validator.
+  SubmitBtn.Activated:Connect(function()
+    CircleClick(SubmitBtn, Player:GetMouse().X, Player:GetMouse().Y)
+    TryKey()
+  end)
+
+  KeyInput.FocusLost:Connect(function(enterPressed)
+    if enterPressed then TryKey() end
+  end)
+
+  return KeyFuncs
+end
+
+-- ============================================================
+-- /// NOTIFICATION SYSTEM
+-- Self-contained floating toast notifications.
+-- Config: Title, Description, Content, Time (tween), Delay (auto-close)
+-- ============================================================
+function MIXUSFIELD_Library:SetNotification(Config)
+  local Title       = Config[1] or Config.Title       or ""
+  local Description = Config[2] or Config.Description or ""
+  local Content     = Config[3] or Config.Content     or ""
+  local Time        = tonumber(Config[5] or Config.Time  or 0.5)
+  local Delay       = tonumber(Config[6] or Config.Delay or 5)
+
+  local NotifGui = Custom:Create("ScreenGui", {
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+  }, GetGuiParent())
+
+  -- Anchor frame in the bottom-right corner that stacks notifications.
+  local NotifLayout = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(1, 1),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(1, -30, 1, -30),
+    Size                = UDim2.new(0, 320, 1, 0),
+    Name                = "NotifLayout",
+  }, NotifGui)
+
+  local Count = 0
+
+  -- Re-stack remaining notifications when one is removed.
+  NotifLayout.ChildRemoved:Connect(function()
+    Count = 0
+    local info = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+    for _, v in ipairs(NotifLayout:GetChildren()) do
+      local newPos = UDim2.new(0, 0, 1, -((v.Size.Y.Offset + 12) * Count))
+      TweenService:Create(v, info, { Position = newPos }):Play()
+      Count = Count + 1
+    end
+  end)
+
+  -- Calculate vertical offset so the new toast appears above existing ones.
+  local _Count = 0
+  for _, v in ipairs(NotifLayout:GetChildren()) do
+    _Count = -(v.Position.Y.Offset) + v.Size.Y.Offset + 12
+  end
+
+  local NotifFrame = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(0, 1),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 0, 1, -_Count),
+    Size                = UDim2.new(1, 0, 0, 150),
+    Name                = "NotifFrame",
+  }, NotifLayout)
+
+  -- Actual colored card inside the animation wrapper.
+  local NotifCard = Custom:Create("Frame", {
+    BackgroundColor3    = Theme.Background,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 400, 0, 0),   -- starts off-screen right
+    Size                = UDim2.new(1, 0, 1, 0),
+    Name                = "NotifCard",
+  }, NotifFrame)
+  ThemeBind(NotifCard, "BackgroundColor3", "Background")
+
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 8) }, NotifCard)
+
+  -- Accent-colored left border strip for visual identity.
+  local AccentBar = Custom:Create("Frame", {
+    BackgroundColor3    = Theme.Accent,
+    BorderSizePixel     = 0,
+    Size                = UDim2.new(0, 3, 1, 0),
+    Name                = "AccentBar",
+  }, NotifCard)
+  ThemeBind(AccentBar, "BackgroundColor3", "Accent")
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 8) }, AccentBar)
+
+  -- UIStroke around the whole notification card.
+  local NotifStroke = Custom:Create("UIStroke", {
+    Color     = Theme.Stroke,
+    Thickness = 1.2,
+  }, NotifCard)
+  ThemeBind(NotifStroke, "Color", "Stroke")
+
+  -- Header bar with title and dismiss button.
+  local Top = Custom:Create("Frame", {
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Size                = UDim2.new(1, 0, 0, 36),
+    Name                = "Top",
+  }, NotifCard)
+
+  Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = Title,
+    TextColor3          = Theme.Text,
+    TextSize            = 14,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 14, 0, 0),
+    Size                = UDim2.new(1, -50, 1, 0),
+    Name                = "NotifTitle",
+  }, Top)
+
+  Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = Description,
+    TextColor3          = Theme.Accent,
+    TextSize            = 13,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 120, 0, 0),
+    Size                = UDim2.new(1, -125, 1, 0),
+    Name                = "NotifDesc",
+  }, Top)
+
+  -- Dismiss "X" button in the top-right corner.
+  local CloseBtn = Custom:Create("TextButton", {
+    Font                = Enum.Font.GothamBold,
+    Text                = "×",
+    TextColor3          = Theme.SubText,
+    TextSize            = 18,
+    AnchorPoint         = Vector2.new(1, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(1, -8, 0.5, 0),
+    Size                = UDim2.new(0, 25, 0, 25),
+    Name                = "CloseBtn",
+  }, Top)
+  ThemeBind(CloseBtn, "TextColor3", "SubText")
+
+  -- Divider line between header and body.
+  local NotifDivider = Custom:Create("Frame", {
+    BackgroundColor3    = Theme.Stroke,
+    BackgroundTransparency = 0.3,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 0, 0, 36),
+    Size                = UDim2.new(1, 0, 0, 1),
+    Name                = "NotifDivider",
+  }, NotifCard)
+  ThemeBind(NotifDivider, "BackgroundColor3", "Stroke")
+
+  -- Body text (content / message).
+  local BodyLabel = Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = Content,
+    TextColor3          = Theme.SubText,
+    TextSize            = 13,
+    TextWrapped         = true,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    TextYAlignment      = Enum.TextYAlignment.Top,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 14, 0, 44),
+    Size                = UDim2.new(1, -20, 0, 13),
+    Name                = "BodyLabel",
+  }, NotifCard)
+  ThemeBind(BodyLabel, "TextColor3", "SubText")
+
+  -- Dynamically resize the notification to fit the body text.
+  BodyLabel.Size = UDim2.new(1, -20, 0, 13 + (13 * (BodyLabel.TextBounds.X // BodyLabel.AbsoluteSize.X)))
+  BodyLabel.TextWrapped = true
+
+  if BodyLabel.AbsoluteSize.Y < 27 then
+    NotifFrame.Size = UDim2.new(1, 0, 0, 70)
+  else
+    NotifFrame.Size = UDim2.new(1, 0, 0, BodyLabel.AbsoluteSize.Y + 48)
+  end
+
+  local Notification = {}
+  local dismissed = false
+
+  -- Slides the notification back off-screen and removes it.
+  function Notification:Close()
+    if dismissed then return end
+    dismissed = true
+    TweenService:Create(NotifCard, TweenInfo.new(Time, Enum.EasingStyle.Back, Enum.EasingDirection.InOut), {
+      Position = UDim2.new(0, 400, 0, 0)
+    }):Play()
+    task.wait(Time / 1.2)
+    NotifFrame:Destroy()
+    dismissed = false
+  end
+
+  CloseBtn.Activated:Connect(function() Notification:Close() end)
+
+  -- Slide in from the right.
+  TweenService:Create(NotifCard, TweenInfo.new(Time, Enum.EasingStyle.Back, Enum.EasingDirection.InOut), {
+    Position = UDim2.new(0, 0, 0, 0)
+  }):Play()
+
+  -- Auto-dismiss after `Delay` seconds.
+  task.delay(Delay, function() Notification:Close() end)
+
+  return Notification
+end
+
+-- ============================================================
+-- /// CREATE WINDOW
+-- The main UI window. Returns a Tabs object.
+-- Config: Title, Description, Tab Width, SizeUi
+-- ============================================================
+function MIXUSFIELD_Library:CreateWindow(Config)
+  local Title    = Config[1] or Config.Title       or ""
+  local Desc     = Config[2] or Config.Description or ""
+  local TabWidth = Config[3] or Config["Tab Width"] or 120
+  local SizeUi   = Config[4] or Config.SizeUi      or UDim2.fromOffset(550, 315)
+
+  local Funcs = {}
+
+  local MIXUSGui = Custom:Create("ScreenGui", {
+    ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+  }, GetGuiParent())
+
+  -- Shadow holder positions the window centered on screen.
+  local ShadowHolder = Custom:Create("Frame", {
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Size                = UDim2.new(0, 455, 0, 350),
+    ZIndex              = 0,
+    Position            = UDim2.new(
+      0, MIXUSGui.AbsoluteSize.X // 2 - 455 // 2,
+      0, MIXUSGui.AbsoluteSize.Y // 2 - 350 // 2
+    ),
+    Name                = "ShadowHolder",
+  }, MIXUSGui)
+
+  -- Drop-shadow image label behind the window.
+  local DropShadow = Custom:Create("ImageLabel", {
+    Image               = "",
+    ImageColor3         = Color3.fromRGB(0, 0, 0),
+    ImageTransparency   = 0.5,
+    ScaleType           = Enum.ScaleType.Slice,
+    SliceCenter         = Rect.new(49, 49, 450, 450),
+    AnchorPoint         = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0.5, 0, 0.5, 0),
+    Size                = SizeUi,
+    ZIndex              = 0,
+    Name                = "DropShadow",
+  }, ShadowHolder)
+
+  -- Main window frame.
+  local Main = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(0.5, 0.5),
+    BackgroundColor3    = Theme.Background,
+    BackgroundTransparency = 0.05,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0.5, 0, 0.5, 0),
+    Size                = SizeUi,
+    Name                = "Main",
+  }, DropShadow)
+  ThemeBind(Main, "BackgroundColor3", "Background")
+  Custom:Create("UICorner", {}, Main)
+
+  -- Window border/stroke using the theme Stroke color.
+  local MainStroke = Custom:Create("UIStroke", {
+    Color     = Theme.Stroke,
+    Thickness = 1.6,
+  }, Main)
+  ThemeBind(MainStroke, "Color", "Stroke")
+
+  -- ── Top bar ───────────────────────────────────────────────
+  local Top = Custom:Create("Frame", {
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Size                = UDim2.new(1, 0, 0, 38),
+    Name                = "Top",
+  }, Main)
+
+  Custom:Create("UICorner", {}, Top)
+
+  -- Window title text.
+  local TitleLabel = Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = Title,
+    TextColor3          = Theme.Text,
+    TextSize            = 14,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 10, 0, 0),
+    Size                = UDim2.new(1, -100, 1, 0),
+    Name                = "TitleLabel",
+  }, Top)
+  ThemeBind(TitleLabel, "TextColor3", "Text")
+
+  -- Subtitle / description in accent color next to the title.
+  local DescLabel = Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = Desc,
+    TextColor3          = Theme.Accent,
+    TextSize            = 14,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, TitleLabel.TextBounds.X + 15, 0, 0),
+    Size                = UDim2.new(1, -(TitleLabel.TextBounds.X + 104), 1, 0),
+    Name                = "DescLabel",
+  }, Top)
+  ThemeBind(DescLabel, "TextColor3", "Accent")
+
+  -- UIStroke on the description label (subtle glow under accent text).
+  local DescStroke = Custom:Create("UIStroke", {
+    Color       = Theme.Accent,
+    Thickness   = 0.4,
+  }, DescLabel)
+  ThemeBind(DescStroke, "Color", "Accent")
+
+  -- Close "×" button.
+  local CloseBtn = Custom:Create("TextButton", {
+    Font                = Enum.Font.GothamBold,
+    Text                = "×",
+    TextColor3          = Theme.SubText,
+    TextSize            = 20,
+    AnchorPoint         = Vector2.new(1, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(1, -8, 0.5, 0),
+    Size                = UDim2.new(0, 25, 0, 25),
+    Name                = "CloseBtn",
+  }, Top)
+  ThemeBind(CloseBtn, "TextColor3", "SubText")
+
+  -- Minimize "−" button (hides the window).
+  local MinBtn = Custom:Create("TextButton", {
+    Font                = Enum.Font.GothamBold,
+    Text                = "−",
+    TextColor3          = Theme.SubText,
+    TextSize            = 20,
+    AnchorPoint         = Vector2.new(1, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(1, -42, 0.5, 0),
+    Size                = UDim2.new(0, 25, 0, 25),
+    Name                = "MinBtn",
+  }, Top)
+  ThemeBind(MinBtn, "TextColor3", "SubText")
+
+  -- Horizontal rule below the top bar.
+  local TopDivider = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(0.5, 0),
+    BackgroundColor3    = Theme.Stroke,
+    BackgroundTransparency = 0.5,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0.5, 0, 0, 38),
+    Size                = UDim2.new(1, 0, 0, 1),
+    Name                = "TopDivider",
+  }, Main)
+  ThemeBind(TopDivider, "BackgroundColor3", "Stroke")
+
+  -- ── Tab sidebar ───────────────────────────────────────────
+  local LayersTab = Custom:Create("Frame", {
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, 9, 0, 50),
+    Size                = UDim2.new(0, TabWidth, 1, -59),
+    Name                = "LayersTab",
+  }, Main)
+
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 2) }, LayersTab)
+
+  -- Vertical divider between the tab list and content area.
+  local SidebarDivider = Custom:Create("Frame", {
+    BackgroundColor3    = Theme.Stroke,
+    BackgroundTransparency = 0.5,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, TabWidth + 14, 0, 50),
+    Size                = UDim2.new(0, 1, 1, -59),
+    Name                = "SidebarDivider",
+  }, Main)
+  ThemeBind(SidebarDivider, "BackgroundColor3", "Stroke")
+
+  -- ── Content area ──────────────────────────────────────────
+  local Layers = Custom:Create("Frame", {
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0, TabWidth + 18, 0, 50),
+    Size                = UDim2.new(1, -(TabWidth + 9 + 18), 1, -59),
+    Name                = "Layers",
+  }, Main)
+
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 2) }, Layers)
+
+  -- Current tab name displayed at the top of the content area.
+  local NameTab = Custom:Create("TextLabel", {
+    Font                = Enum.Font.GothamBold,
+    Text                = "",
+    TextColor3          = Theme.Text,
+    TextSize            = 22,
+    TextWrapped         = true,
+    TextXAlignment      = Enum.TextXAlignment.Left,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Size                = UDim2.new(1, 0, 0, 30),
+    Name                = "NameTab",
+  }, Layers)
+  ThemeBind(NameTab, "TextColor3", "Text")
+
+  -- Clipping frame that pages between tab content.
+  local LayersReal = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(0, 1),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    ClipsDescendants    = true,
+    Position            = UDim2.new(0, 0, 1, 0),
+    Size                = UDim2.new(1, 0, 1, -33),
+    Name                = "LayersReal",
+  }, Layers)
+
+  -- Folder that UIPageLayout operates on for tab paging.
+  local LayersFolder = Custom:Create("Folder", { Name = "LayersFolder" }, LayersReal)
+
+  local LayersPageLayout = Custom:Create("UIPageLayout", {
+    SortOrder          = Enum.SortOrder.LayoutOrder,
+    TweenTime          = 0.4,
+    EasingDirection    = Enum.EasingDirection.InOut,
+    EasingStyle        = Enum.EasingStyle.Quad,
+    Name               = "LayersPageLayout",
+  }, LayersFolder)
+
+  -- Scrollable list of tab buttons in the sidebar.
+  local ScrollTab = Custom:Create("ScrollingFrame", {
+    CanvasSize          = UDim2.new(0, 0, 2.1, 0),
+    ScrollBarThickness  = 0,
+    Active              = true,
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Size                = UDim2.new(1, 0, 1, -10),
+    Name                = "ScrollTab",
+  }, LayersTab)
+
+  Custom:Create("UIListLayout", {
+    Padding    = UDim.new(0, 0),
+    SortOrder  = Enum.SortOrder.LayoutOrder,
+  }, ScrollTab)
+
+  -- Keeps the sidebar scroll canvas sized to its content.
+  local function UpdateTabCanvas()
+    local total = 0
+    for _, v in pairs(ScrollTab:GetChildren()) do
+      if v.Name ~= "UIListLayout" then
+        total = total + 3 + v.Size.Y.Offset
+      end
+    end
+    ScrollTab.CanvasSize = UDim2.new(0, 0, 0, total)
+  end
+
+  ScrollTab.ChildAdded:Connect(UpdateTabCanvas)
+  ScrollTab.ChildRemoved:Connect(UpdateTabCanvas)
+
+  -- ── Blur / dropdown overlay (used by dropdowns) ───────────
+  local MoreBlur = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(1, 1),
+    BackgroundColor3    = Color3.fromRGB(0, 0, 0),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    ClipsDescendants    = true,
+    Position            = UDim2.new(1, 8, 1, 8),
+    Size                = UDim2.new(1, 154, 1, 54),
+    Visible             = false,
+    Name                = "MoreBlur",
+  }, Layers)
+
+  Custom:Create("UICorner", {}, MoreBlur)
+
+  -- Invisible full-size button to dismiss the dropdown by clicking outside it.
+  local ConnectButton = Custom:Create("TextButton", {
+    Font                = Enum.Font.SourceSans,
+    Text                = "",
+    BackgroundTransparency = 0.999,
+    BorderSizePixel     = 0,
+    Size                = UDim2.new(1, 0, 1, 0),
+    Name                = "ConnectButton",
+  }, MoreBlur)
+
+  -- Sliding panel that hosts the dropdown scroll list.
+  local DropdownSelect = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(1, 0.5),
+    BackgroundColor3    = Theme.Surface,
+    BorderSizePixel     = 0,
+    ClipsDescendants    = true,
+    LayoutOrder         = 1,
+    Position            = UDim2.new(1, 172, 0.5, 0),
+    Size                = UDim2.new(0, 160, 1, -16),
+    Name                = "DropdownSelect",
+  }, MoreBlur)
+  ThemeBind(DropdownSelect, "BackgroundColor3", "Surface")
+
+  Custom:Create("UICorner", { CornerRadius = UDim.new(0, 3) }, DropdownSelect)
+
+  -- Stroke on the dropdown panel.
+  local DropdownPanelStroke = Custom:Create("UIStroke", {
+    Color       = Theme.Stroke,
+    Thickness   = 2,
+    Transparency = 0.5,
+  }, DropdownSelect)
+  ThemeBind(DropdownPanelStroke, "Color", "Stroke")
+
+  -- Inner frame and paging for the dropdown options.
+  local DropdownSelectReal = Custom:Create("Frame", {
+    AnchorPoint         = Vector2.new(0.5, 0.5),
+    BackgroundTransparency = 1,
+    BorderSizePixel     = 0,
+    Position            = UDim2.new(0.5, 0, 0.5, 0),
+    Size                = UDim2.new(1, -10, 1, -10),
+    Name                = "DropdownSelectReal",
+  }, DropdownSelect)
+
+  local DropdownFolder = Custom:Create("Folder", {
+    Name = "DropdownFolder",
+  }, DropdownSelectReal)
+
+  Custom:Create("UIPageLayout", {
+    EasingDirection = Enum.EasingDirection.InOut,
+    EasingStyle     = Enum.EasingStyle.Quad,
+    TweenTime       = 0.01,
+    SortOrder       = Enum.SortOrder.LayoutOrder,
+    Archivable      = false,
+    Name            = "DropPageLayout",
+  }, DropdownFolder)
+
+  -- Wire up the close-blur button to slide the dropdown back out.
+  ConnectButton.Activated:Connect(function()
+    if MoreBlur.Visible then
+      local info = TweenInfo.new(0.2)
+      TweenService:Create(MoreBlur, info, { BackgroundTransparency = 0.999 }):Play()
+      TweenService:Create(DropdownSelect, info, { Position = UDim2.new(1, 172, 0.5, 0) }):Play()
+      task.wait(0.2)
+      MoreBlur.Visible = false
+    end
+  end)
+
+  -- ── Window controls ────────────────────────────────────────
+  MinBtn.Activated:Connect(function()
+    CircleClick(MinBtn, Player:GetMouse().X, Player:GetMouse().Y)
+    ShadowHolder.Visible = false
+    Open_Close.Visible   = true
+  end)
+
+  Open_Close.Activated:Connect(function()
+    ShadowHolder.Visible = true
+    Open_Close.Visible   = false
+  end)
+
+  CloseBtn.Activated:Connect(function()
+    CircleClick(CloseBtn, Player:GetMouse().X, Player:GetMouse().Y)
+    if MIXUSGui then MIXUSGui:Destroy() end
+    MIXUSFIELD_Library.Unloaded = true
+  end)
+
+  -- Resize the shadow holder to fit the actual text lengths in the title bar.
+  ShadowHolder.Size = UDim2.new(0, 115 + TitleLabel.TextBounds.X + 1 + DescLabel.TextBounds.X, 0, 350)
+  MakeDraggable(Top, ShadowHolder)
+
+  -- ============================================================
+  -- /// TAB BUILDER
+  -- ============================================================
+  local Tabs      = {}
+  local CountTab  = 0
+  local CountDropdown = 0
+
+  -- Creates a new tab in the sidebar and returns a Section builder.
+  -- @param Config  { [1]=Name, [2]=Icon }  or  { Name=…, Icon=… }
+  function Tabs:CreateTab(Config)
+    local _Name = Config[1] or Config.Name or ""
+    local Icon  = Config[2] or Config.Icon or ""
+
+    -- Each tab has its own scrollable content page.
+    local ScrolLayers = Custom:Create("ScrollingFrame", {
+      ScrollBarThickness  = 3,
+      ScrollBarImageColor3 = Theme.Accent,
+      Active              = true,
+      LayoutOrder         = CountTab,
+      BackgroundTransparency = 1,
+      BorderSizePixel     = 0,
+      Size                = UDim2.new(1, 0, 1, 0),
+      Name                = "ScrolLayers",
+    }, LayersFolder)
+    ThemeBind(ScrolLayers, "ScrollBarImageColor3", "Accent")
+
+    Custom:Create("UIListLayout", {
+      Padding   = UDim.new(0, 3),
+      SortOrder = Enum.SortOrder.LayoutOrder,
+    }, ScrolLayers)
+
+    -- Sidebar tab frame (the clickable button row).
+    local Tab = Custom:Create("Frame", {
+      BackgroundColor3    = Theme.Surface,
+      BackgroundTransparency = CountTab == 0 and 0.6 or 0.999,
+      BorderSizePixel     = 0,
+      LayoutOrder         = CountTab,
+      Size                = UDim2.new(1, 0, 0, 30),
+      Name                = "Tab",
+    }, ScrollTab)
+    ThemeBind(Tab, "BackgroundColor3", "Surface")
+
+    Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, Tab)
+
+    -- UIStroke on each tab button to visually separate entries.
+    local TabStroke = Custom:Create("UIStroke", {
+      Color       = Theme.Stroke,
+      Thickness   = 1,
+      Transparency = 0.7,
+    }, Tab)
+    ThemeBind(TabStroke, "Color", "Stroke")
+
+    -- Invisible overlay button receives the click.
+    local TabButton = Custom:Create("TextButton", {
+      Font                = Enum.Font.GothamBold,
+      Text                = "",
+      TextSize            = 13,
+      BackgroundTransparency = 0.999,
+      BorderSizePixel     = 0,
+      Size                = UDim2.new(1, 0, 1, 0),
+      Name                = "TabButton",
+    }, Tab)
+
+    -- Visible tab name label.
+    local TabNameLabel = Custom:Create("TextLabel", {
+      Font                = Enum.Font.GothamBold,
+      Text                = _Name,
+      TextColor3          = Theme.Text,
+      TextSize            = 13,
+      TextXAlignment      = Enum.TextXAlignment.Left,
+      BackgroundTransparency = 1,
+      BorderSizePixel     = 0,
+      Position            = UDim2.new(0, 30, 0, 0),
+      Size                = UDim2.new(1, -34, 1, 0),
+      Name                = "TabName",
+    }, Tab)
+    ThemeBind(TabNameLabel, "TextColor3", "Text")
+
+    -- Icon image label to the left of the tab name.
+    Custom:Create("ImageLabel", {
+      Image               = Icon,
+      BackgroundTransparency = 1,
+      BorderSizePixel     = 0,
+      Position            = UDim2.new(0, 9, 0, 7),
+      Size                = UDim2.new(0, 16, 0, 16),
+      Name                = "TabIcon",
+    }, Tab)
+
+    -- Active indicator bar (the colored left-edge marker).
+    if CountTab == 0 then
+      LayersPageLayout:JumpToIndex(0)
+      NameTab.Text = _Name
+
+      local ChooseFrame = Custom:Create("Frame", {
+        BackgroundColor3 = Theme.Accent,
+        BorderSizePixel  = 0,
+        Position         = UDim2.new(0, 2, 0, 9),
+        Size             = UDim2.new(0, 1, 0, 12),
+        Name             = "ChooseFrame",
+      }, Tab)
+      ThemeBind(ChooseFrame, "BackgroundColor3", "Accent")
+
+      local ChooseStroke = Custom:Create("UIStroke", {
+        Color     = Theme.Accent,
+        Thickness = 1.6,
+      }, ChooseFrame)
+      ThemeBind(ChooseStroke, "Color", "Accent")
+
+      Custom:Create("UICorner", {}, ChooseFrame)
+    end
+
+    -- Tab click handler: highlight this tab and switch the page.
+    TabButton.Activated:Connect(function()
+      CircleClick(TabButton, Player:GetMouse().X, Player:GetMouse().Y)
+
+      -- Find the shared active-indicator bar (ChooseFrame lives in a tab).
+      local FrameChoose = nil
+      for _, s in pairs(ScrollTab:GetChildren()) do
+        for _, v in pairs(s:GetChildren()) do
+          if v.Name == "ChooseFrame" then
+            FrameChoose = v
+            break
+          end
+        end
+        if FrameChoose then break end
+      end
+
+      if FrameChoose and Tab.LayoutOrder ~= LayersPageLayout.CurrentPage.LayoutOrder then
+        -- Dim all tabs.
+        for _, tf in pairs(ScrollTab:GetChildren()) do
+          if tf.Name == "Tab" then
+            TweenService:Create(tf, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.InOut), {
+              BackgroundTransparency = 0.999
+            }):Play()
+          end
+        end
+
+        -- Highlight selected tab.
+        TweenService:Create(Tab, TweenInfo.new(0.6, Enum.EasingStyle.Back, Enum.EasingDirection.InOut), {
+          BackgroundTransparency = 0.6
+        }):Play()
+
+        -- Animate the indicator bar moving to this tab's position.
+        TweenService:Create(FrameChoose, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
+          Position = UDim2.new(0, 2, 0, 9 + (33 * Tab.LayoutOrder))
+        }):Play()
+
+        LayersPageLayout:JumpToIndex(Tab.LayoutOrder)
+        task.wait(0.05)
+        NameTab.Text = _Name
+
+        -- Pulse the indicator bar height.
+        TweenService:Create(FrameChoose, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
+          Size = UDim2.new(0, 1, 0, 20)
+        }):Play()
+        task.wait(0.2)
+        TweenService:Create(FrameChoose, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {
+          Size = UDim2.new(0, 1, 0, 12)
+        }):Play()
+      end
+    end)
+
+    -- ============================================================
+    -- /// SECTION BUILDER  (lives inside each Tab)
+    -- ============================================================
+    local Sections    = {}
+    local CountSection = 0
+
+    -- Adds a collapsible section inside this tab.
+    -- @param Title        string header for the section
+    -- @param OpenSection  bool – start expanded (true) or collapsed (false)
+    function Sections:AddSection(Title, OpenSection)
+      Title       = Title or ""
+      OpenSection = OpenSection or false
+
+      local Section = Custom:Create("Frame", {
+        BackgroundTransparency = 1,
+        BorderSizePixel     = 0,
+        ClipsDescendants    = true,
+        LayoutOrder         = CountSection,
+        Size                = UDim2.new(1, 0, 0, 30),
+        Name                = "Section",
+      }, ScrolLayers)
+
+      -- Visible header row of the section.
+      local SectionReal = Custom:Create("Frame", {
+        AnchorPoint         = Vector2.new(0.5, 0),
+        BackgroundColor3    = Theme.Surface,
+        BackgroundTransparency = 0.5,
+        BorderSizePixel     = 0,
+        LayoutOrder         = 1,
+        Position            = UDim2.new(0.5, 0, 0, 0),
+        Size                = UDim2.new(1, 1, 0, 30),
+        Name                = "SectionReal",
+      }, Section)
+      ThemeBind(SectionReal, "BackgroundColor3", "Surface")
+
+      Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, SectionReal)
+
+      -- UIStroke on the section header.
+      local SectionStroke = Custom:Create("UIStroke", {
+        Color       = Theme.Accent,
+        Thickness   = 1,
+        Transparency = 0.7,
+      }, SectionReal)
+      ThemeBind(SectionStroke, "Color", "Accent")
+
+      -- Invisible button over the section header to handle collapse/expand.
+      local SectionButton = Custom:Create("TextButton", {
+        Font                = Enum.Font.SourceSans,
+        Text                = "",
+        BackgroundTransparency = 1,
+        BorderSizePixel     = 0,
+        Size                = UDim2.new(1, 0, 1, 0),
+        Name                = "SectionButton",
+      }, SectionReal)
+
+      -- Rotating chevron icon (rotates 90° when section is open).
+      local FeatureFrame = Custom:Create("Frame", {
+        AnchorPoint         = Vector2.new(1, 0.5),
+        BackgroundTransparency = 1,
+        BorderSizePixel     = 0,
+        Position            = UDim2.new(1, -5, 0.5, 0),
+        Size                = UDim2.new(0, 20, 0, 20),
+        Name                = "FeatureFrame",
+      }, SectionReal)
+
+      Custom:Create("ImageLabel", {
+        Image               = "rbxassetid://125609963478878",
+        AnchorPoint         = Vector2.new(0.5, 0.5),
+        BackgroundTransparency = 1,
+        BorderSizePixel     = 0,
+        Position            = UDim2.new(0.5, 0, 0.5, 0),
+        Rotation            = -90,
+        Size                = UDim2.new(1, 6, 1, 6),
+        ImageColor3         = Theme.SubText,
+        Name                = "ChevronImg",
+      }, FeatureFrame)
+
+      -- Section title text label.
+      local SectionTitle = Custom:Create("TextLabel", {
+        Font                = Enum.Font.GothamBold,
+        Text                = Title,
+        TextColor3          = Theme.Text,
+        TextSize            = 13,
+        TextXAlignment      = Enum.TextXAlignment.Left,
+        AnchorPoint         = Vector2.new(0, 0.5),
+        BackgroundTransparency = 1,
+        BorderSizePixel     = 0,
+        Position            = UDim2.new(0, 10, 0.5, 0),
+        Size                = UDim2.new(1, -50, 0, 13),
+        Name                = "SectionTitle",
+      }, SectionReal)
+      ThemeBind(SectionTitle, "TextColor3", "Text")
+
+      -- Gradient divider shown when section is expanded.
+      local SectionDecide = Custom:Create("Frame", {
+        AnchorPoint         = Vector2.new(0.5, 0),
+        BackgroundColor3    = Theme.Accent,
+        BorderSizePixel     = 0,
+        Position            = UDim2.new(0.5, 0, 0, 33),
+        Size                = UDim2.new(0, 0, 0, 2),
+        Name                = "SectionDecide",
+      }, Section)
+      ThemeBind(SectionDecide, "BackgroundColor3", "Accent")
+      Custom:Create("UICorner", {}, SectionDecide)
+
+      Custom:Create("UIGradient", {
+        Color = ColorSequence.new{
+          ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
+          ColorSequenceKeypoint.new(0.5, Theme.Accent),
+          ColorSequenceKeypoint.new(1, Color3.fromRGB(20, 20, 20))
+        },
+      }, SectionDecide)
+
+      -- Container frame where items (buttons, toggles, etc.) are added.
+      local SectionAdd = Custom:Create("Frame", {
+        AnchorPoint         = Vector2.new(0.5, 0),
+        BackgroundTransparency = 1,
+        BorderSizePixel     = 0,
+        ClipsDescendants    = true,
+        LayoutOrder         = 1,
+        Position            = UDim2.new(0.5, 0, 0, 38),
+        Size                = UDim2.new(1, 0, 0, 100),
+        Name                = "SectionAdd",
+      }, Section)
+
+      Custom:Create("UICorner", { CornerRadius = UDim.new(0, 2) }, SectionAdd)
+      Custom:Create("UIListLayout", {
+        Padding   = UDim.new(0, 3),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+      }, SectionAdd)
+
+      -- Recalculates the outer scroll canvas height.
+      local function UpdateSizeScroll()
+        local offset = 0
+        for _, child in pairs(ScrolLayers:GetChildren()) do
+          if child.Name ~= "UIListLayout" then
+            offset = offset + 3 + child.Size.Y.Offset
+          end
+        end
+        ScrolLayers.CanvasSize = UDim2.new(0, 0, 0, offset)
+      end
+
+      -- Recalculates and tweens the section to its correct open height.
+      local function UpdateSizeSection()
+        if OpenSection then
+          local height = 38
+          for _, v in pairs(SectionAdd:GetChildren()) do
+            if v.Name ~= "UIListLayout" and v.Name ~= "UICorner" then
+              height = height + v.Size.Y.Offset + 3
+            end
+          end
+          TweenService:Create(FeatureFrame, TweenInfo.new(0.1), { Rotation = 90 }):Play()
+          TweenService:Create(Section, TweenInfo.new(0.1), { Size = UDim2.new(1, 1, 0, height) }):Play()
+          TweenService:Create(SectionAdd, TweenInfo.new(0.1), { Size = UDim2.new(1, 0, 0, height - 38) }):Play()
+          TweenService:Create(SectionDecide, TweenInfo.new(0.1), { Size = UDim2.new(1, 0, 0, 2) }):Play()
+          task.wait(0.5)
+          UpdateSizeScroll()
+        end
+      end
+
+      -- Toggles the section open/closed on header click.
+      local function ToggleSection()
+        CircleClick(SectionButton, Player:GetMouse().X, Player:GetMouse().Y)
+        if OpenSection then
+          TweenService:Create(FeatureFrame, TweenInfo.new(0.1), { Rotation = 0 }):Play()
+          TweenService:Create(Section, TweenInfo.new(0.1), { Size = UDim2.new(1, 1, 0, 30) }):Play()
+          TweenService:Create(SectionDecide, TweenInfo.new(0.1), { Size = UDim2.new(0, 0, 0, 2) }):Play()
+          OpenSection = false
+          task.wait(0.1)
+          UpdateSizeScroll()
+        else
+          OpenSection = true
+          UpdateSizeSection()
+        end
+      end
+
+      SectionButton.Activated:Connect(ToggleSection)
+      SectionAdd.ChildAdded:Connect(UpdateSizeSection)
+      SectionAdd.ChildRemoved:Connect(UpdateSizeSection)
+      UpdateSizeScroll()
+
+      -- ========================================================
+      -- /// ITEM BUILDERS  (live inside each Section)
+      -- ========================================================
+      local Item      = {}
+      local ItemCount = 0
+
+      -- ── Paragraph ──────────────────────────────────────────
+      -- Displays a readonly title + body block of text.
+      function Item:AddParagraph(Config)
+        local PTitle   = Config[1] or Config.Title   or ""
+        local PContent = Config[2] or Config.Content or ""
+        local PFuncs   = {}
+
+        local Paragraph = Custom:Create("Frame", {
+          BackgroundColor3    = Theme.Surface,
+          BackgroundTransparency = 0.6,
+          BorderSizePixel     = 0,
+          LayoutOrder         = ItemCount,
+          Size                = UDim2.new(1, 0, 0, 35),
+          Name                = "Paragraph",
+        }, SectionAdd)
+        ThemeBind(Paragraph, "BackgroundColor3", "Surface")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, Paragraph)
+
+        -- UIStroke on the paragraph element.
+        local ParaStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 1,
+          Transparency = 0.6,
+        }, Paragraph)
+        ThemeBind(ParaStroke, "Color", "Stroke")
+
+        local ParaTitle = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = PTitle,
+          TextColor3          = Theme.Text,
+          TextSize            = 13,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Top,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 10),
+          Size                = UDim2.new(1, -16, 0, 13),
+          Name                = "ParagraphTitle",
+        }, Paragraph)
+        ThemeBind(ParaTitle, "TextColor3", "Text")
+
+        local ParaContent = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = PContent,
+          TextColor3          = Theme.SubText,
+          TextSize            = 12,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Bottom,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 23),
+          Name                = "ParagraphContent",
+        }, Paragraph)
+        ThemeBind(ParaContent, "TextColor3", "SubText")
+
+        -- Auto-resize to wrap long content text.
+        local function UpdateParagraphSize()
+          ParaContent.TextWrapped = false
+          local lines = math.ceil(ParaContent.TextBounds.X / math.max(ParaContent.AbsoluteSize.X, 1))
+          ParaContent.Size = UDim2.new(1, -16, 0, 12 + (12 * lines))
+          Paragraph.Size   = UDim2.new(1, 0, 0, ParaContent.AbsoluteSize.Y + 33)
+          ParaContent.TextWrapped = true
+          UpdateSizeSection()
+        end
+
+        UpdateParagraphSize()
+        ParaContent:GetPropertyChangedSignal("AbsoluteSize"):Connect(UpdateParagraphSize)
+
+        -- Allows updating the paragraph text after creation.
+        function PFuncs:Set(Config)
+          ParaTitle.Text   = Config[1] or Config.Title   or ""
+          ParaContent.Text = Config[2] or Config.Content or ""
+          UpdateParagraphSize()
+        end
+
+        ItemCount += 1
+        return PFuncs
+      end
+
+      -- ── Separator ──────────────────────────────────────────
+      -- A divider row with a label; useful as a sub-heading.
+      function Item:AddSeperator(Config)
+        local SepTitle = Config[1] or Config.Title or ""
+        local SFuncs   = {}
+
+        local Seperator = Custom:Create("Frame", {
+          BackgroundColor3    = Theme.Surface,
+          BackgroundTransparency = 0.3,
+          BorderSizePixel     = 0,
+          LayoutOrder         = ItemCount,
+          Size                = UDim2.new(1, 0, 0, 30),
+          Name                = "Seperator",
+        }, SectionAdd)
+        ThemeBind(Seperator, "BackgroundColor3", "Surface")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 6) }, Seperator)
+
+        -- Stroke for the separator bar.
+        local SepStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Accent,
+          Thickness   = 1,
+          Transparency = 0.6,
+        }, Seperator)
+        ThemeBind(SepStroke, "Color", "Accent")
+
+        local SepLabel = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = SepTitle,
+          TextColor3          = Theme.Text,
+          TextSize            = 14,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 12, 0, 0),
+          Size                = UDim2.new(1, -16, 1, 0),
+          Name                = "SepLabel",
+        }, Seperator)
+        ThemeBind(SepLabel, "TextColor3", "Text")
+
+        function SFuncs:Set(Config)
+          SepLabel.Text = Config[1] or Config.Title or ""
+        end
+
+        ItemCount += 1
+        return SFuncs
+      end
+
+      -- ── Line ───────────────────────────────────────────────
+      -- A thin decorative horizontal rule between items.
+      function Item:AddLine()
+        local Line = Custom:Create("Frame", {
+          BackgroundColor3    = Theme.Stroke,
+          BackgroundTransparency = 0.2,
+          BorderSizePixel     = 0,
+          LayoutOrder         = ItemCount,
+          Size                = UDim2.new(1, 0, 0, 1),
+          Name                = "Line",
+        }, SectionAdd)
+        ThemeBind(Line, "BackgroundColor3", "Stroke")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 3) }, Line)
+
+        ItemCount += 1
+        return {}
+      end
+
+      -- ── Button ─────────────────────────────────────────────
+      -- A clickable row with title, optional description, and icon.
+      function Item:AddButton(Config)
+        local BTitle    = Config[1] or Config.Title    or ""
+        local BContent  = Config[2] or Config.Content  or ""
+        local BIcon     = Config[3] or Config.Icon     or "rbxassetid://7734010488"
+        local BCallback = Config[4] or Config.Callback or function() end
+        local BFuncs    = {}
+
+        local Button = Custom:Create("Frame", {
+          BackgroundColor3    = Theme.Surface,
+          BackgroundTransparency = 0.6,
+          BorderSizePixel     = 0,
+          LayoutOrder         = ItemCount,
+          Size                = UDim2.new(1, 0, 0, 35),
+          Name                = "Button",
+        }, SectionAdd)
+        ThemeBind(Button, "BackgroundColor3", "Surface")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, Button)
+
+        -- UIStroke on button using the Accent color for emphasis.
+        local BtnStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Accent,
+          Thickness   = 1,
+          Transparency = 0.75,
+        }, Button)
+        ThemeBind(BtnStroke, "Color", "Accent")
+
+        Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = BTitle,
+          TextColor3          = Theme.Text,
+          TextSize            = 13,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Top,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 10),
+          Size                = UDim2.new(1, -100, 0, 13),
+          Name                = "ButtonTitle",
+        }, Button)
+
+        local BtnContent = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = BContent,
+          TextColor3          = Theme.SubText,
+          TextSize            = 12,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Bottom,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 23),
+          Size                = UDim2.new(1, -100, 0, 12),
+          Name                = "ButtonContent",
+        }, Button)
+        ThemeBind(BtnContent, "TextColor3", "SubText")
+
+        -- Resize the button frame to accommodate wrapped content text.
+        local function UpdateBtnSize()
+          local h = 12 + (12 * (BtnContent.TextBounds.X // math.max(BtnContent.AbsoluteSize.X, 1)))
+          BtnContent.Size = UDim2.new(1, -100, 0, h)
+          Button.Size     = UDim2.new(1, 0, 0, BtnContent.AbsoluteSize.Y + 33)
+        end
+
+        BtnContent.TextWrapped = true
+        UpdateBtnSize()
+        BtnContent:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+          BtnContent.TextWrapped = false
+          UpdateBtnSize()
+          BtnContent.TextWrapped = true
+          UpdateSizeSection()
+        end)
+
+        -- Full-size invisible TextButton to receive clicks.
+        local BtnButton = Custom:Create("TextButton", {
+          Font                = Enum.Font.SourceSans,
+          Text                = "",
+          BackgroundTransparency = 0.999,
+          BorderSizePixel     = 0,
+          Size                = UDim2.new(1, 0, 1, 0),
+          Name                = "BtnButton",
+        }, Button)
+
+        -- Icon container on the right side of the button.
+        local IconFrame = Custom:Create("Frame", {
+          AnchorPoint         = Vector2.new(1, 0.5),
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(1, -15, 0.5, 0),
+          Size                = UDim2.new(0, 25, 0, 25),
+          Name                = "IconFrame",
+        }, Button)
+
+        Custom:Create("ImageLabel", {
+          Image               = BIcon,
+          AnchorPoint         = Vector2.new(0.5, 0.5),
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0.5, 0, 0.5, 0),
+          Size                = UDim2.new(1, 0, 1, 0),
+          Name                = "BtnIcon",
+        }, IconFrame)
+
+        -- Hover tint: accent stroke becomes more visible on hover.
+        BtnButton.MouseEnter:Connect(function()
+          TweenService:Create(BtnStroke, TweenInfo.new(0.15), { Transparency = 0.3 }):Play()
+        end)
+        BtnButton.MouseLeave:Connect(function()
+          TweenService:Create(BtnStroke, TweenInfo.new(0.15), { Transparency = 0.75 }):Play()
+        end)
+
+        BtnButton.Activated:Connect(function()
+          CircleClick(BtnButton, Player:GetMouse().X, Player:GetMouse().Y)
+          BCallback()
+        end)
+
+        ItemCount += 1
+        return BFuncs
+      end
+
+      -- ── Toggle ─────────────────────────────────────────────
+      -- An on/off switch with a sliding circle indicator.
+      function Item:AddToggle(Config)
+        local TTitle    = Config[1] or Config.Title    or ""
+        local TContent  = Config[2] or Config.Content  or ""
+        local TDefault  = Config[3] or Config.Default  or false
+        local TCallback = Config[4] or Config.Callback or function() end
+        local TFuncs    = { Value = TDefault }
+
+        local Toggle = Custom:Create("Frame", {
+          BackgroundColor3    = Theme.Surface,
+          BackgroundTransparency = 0.6,
+          BorderSizePixel     = 0,
+          LayoutOrder         = ItemCount,
+          Size                = UDim2.new(1, 0, 0, 35),
+          Name                = "Toggle",
+        }, SectionAdd)
+        ThemeBind(Toggle, "BackgroundColor3", "Surface")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, Toggle)
+
+        -- UIStroke on toggle (lights up in accent when active).
+        local ToggleStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 1.2,
+          Transparency = 0.5,
+        }, Toggle)
+        ThemeBind(ToggleStroke, "Color", "Stroke")
+
+        local TTogTitle = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = TTitle,
+          TextColor3          = Theme.Text,
+          TextSize            = 13,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Top,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 10),
+          Size                = UDim2.new(1, -100, 0, 13),
+          Name                = "ToggleTitle",
+        }, Toggle)
+        ThemeBind(TTogTitle, "TextColor3", "Text")
+
+        local TTogContent = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = TContent,
+          TextColor3          = Theme.SubText,
+          TextSize            = 12,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Bottom,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 23),
+          Size                = UDim2.new(1, -100, 0, 12),
+          Name                = "ToggleContent",
+        }, Toggle)
+        ThemeBind(TTogContent, "TextColor3", "SubText")
+
+        local function UpdateToggleSize()
+          TTogContent.TextWrapped = false
+          local ratio = TTogContent.TextBounds.X / math.max(TTogContent.AbsoluteSize.X, 1)
+          TTogContent.Size  = UDim2.new(1, -100, 0, 12 + (12 * math.ceil(ratio)))
+          Toggle.Size       = UDim2.new(1, 0, 0, TTogContent.AbsoluteSize.Y + 33)
+          TTogContent.TextWrapped = true
+        end
+
+        UpdateToggleSize()
+        TTogContent:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+          UpdateToggleSize()
+          UpdateSizeSection()
+        end)
+
+        -- Invisible full-area button receives the click.
+        local ToggleButton = Custom:Create("TextButton", {
+          Font                = Enum.Font.SourceSans,
+          Text                = "",
+          BackgroundTransparency = 0.999,
+          BorderSizePixel     = 0,
+          Size                = UDim2.new(1, 0, 1, 0),
+          Name                = "ToggleButton",
+        }, Toggle)
+
+        -- The pill-shaped toggle track.
+        local TrackFrame = Custom:Create("Frame", {
+          AnchorPoint         = Vector2.new(1, 0.5),
+          BackgroundColor3    = Theme.Surface,
+          BackgroundTransparency = 0.3,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(1, -15, 0.5, 0),
+          Size                = UDim2.new(0, 30, 0, 15),
+          Name                = "TrackFrame",
+        }, Toggle)
+        ThemeBind(TrackFrame, "BackgroundColor3", "Surface")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 8) }, TrackFrame)
+
+        -- UIStroke on the track — changes color to Accent when ON.
+        local TrackStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 2,
+          Transparency = 0.6,
+        }, TrackFrame)
+        ThemeBind(TrackStroke, "Color", "Stroke")
+
+        -- The white sliding circle inside the track.
+        local ToggleCircle = Custom:Create("Frame", {
+          BackgroundColor3 = Color3.fromRGB(230, 230, 230),
+          BorderSizePixel  = 0,
+          Size             = UDim2.new(0, 14, 0, 14),
+          Position         = UDim2.new(0, 0, 0, 0),
+          Name             = "ToggleCircle",
+        }, TrackFrame)
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 15) }, ToggleCircle)
+
+        -- Animates the toggle to the correct on/off visual state.
+        local function ToggleAnimation(isOn)
+          local tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+          local titleColor   = isOn and Theme.Accent             or Theme.Text
+          local circlePos    = isOn and UDim2.new(0, 15, 0, 0)   or UDim2.new(0, 0, 0, 0)
+          local strokeColor  = isOn and Theme.Accent             or Theme.Stroke
+          local strokeAlpha  = isOn and 0                        or 0.6
+          local trackAlpha   = isOn and 0                        or 0.3
+          local trackColor   = isOn and Theme.Accent             or Theme.Surface
+
+          TweenService:Create(TTogTitle,    tweenInfo, { TextColor3 = titleColor }):Play()
+          TweenService:Create(ToggleCircle, tweenInfo, { Position   = circlePos  }):Play()
+          TweenService:Create(TrackStroke,  tweenInfo, { Color = strokeColor, Transparency = strokeAlpha }):Play()
+          TweenService:Create(TrackFrame,   tweenInfo, { BackgroundColor3 = trackColor, BackgroundTransparency = trackAlpha }):Play()
+          -- Also update the outer toggle stroke so the whole row glows when active.
+          TweenService:Create(ToggleStroke, tweenInfo, { Color = strokeColor, Transparency = isOn and 0.2 or 0.5 }):Play()
+        end
+
+        function TFuncs:Set(value)
+          TFuncs.Value = value
+          ToggleAnimation(value)
+          TCallback(value)
+        end
+
+        ToggleButton.Activated:Connect(function()
+          CircleClick(ToggleButton, Player:GetMouse().X, Player:GetMouse().Y)
+          TFuncs:Set(not TFuncs.Value)
+        end)
+
+        TFuncs:Set(TDefault)
+
+        ItemCount += 1
+        return TFuncs
+      end
+
+      -- ── Slider ─────────────────────────────────────────────
+      -- A drag-and-type numeric slider.
+      function Item:AddSlider(Config)
+        local STitle    = Config[1] or Config.Title     or ""
+        local SContent  = Config[2] or Config.Content   or ""
+        local Increment = Config[3] or Config.Increment or 1
+        local SMin      = Config[4] or Config.Min       or 0
+        local SMax      = Config[5] or Config.Max       or 100
+        local SDefault  = Config[6] or Config.Default   or 50
+        local SCallback = Config[7] or Config.Callback  or function() end
+        local SFuncs    = { Value = SDefault }
+
+        local Slider = Custom:Create("Frame", {
+          BackgroundColor3    = Theme.Surface,
+          BackgroundTransparency = 0.6,
+          BorderSizePixel     = 0,
+          LayoutOrder         = ItemCount,
+          Size                = UDim2.new(1, 0, 0, 35),
+          Name                = "Slider",
+        }, SectionAdd)
+        ThemeBind(Slider, "BackgroundColor3", "Surface")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, Slider)
+
+        -- UIStroke on the slider row.
+        local SliderStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 1,
+          Transparency = 0.5,
+        }, Slider)
+        ThemeBind(SliderStroke, "Color", "Stroke")
+
+        Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = STitle,
+          TextColor3          = Theme.Text,
+          TextSize            = 13,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Top,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 10),
+          Size                = UDim2.new(1, -180, 0, 13),
+          Name                = "SliderTitle",
+        }, Slider)
+
+        local SliderContent = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = SContent,
+          TextColor3          = Theme.SubText,
+          TextSize            = 12,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Bottom,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 23),
+          Size                = UDim2.new(1, -180, 0, 12),
+          Name                = "SliderContent",
+        }, Slider)
+        ThemeBind(SliderContent, "TextColor3", "SubText")
+
+        local function UpdateSliderSize()
+          SliderContent.TextWrapped = false
+          SliderContent.Size = UDim2.new(1, -180, 0, 12 + (12 * math.floor(SliderContent.TextBounds.X / math.max(SliderContent.AbsoluteSize.X, 1))))
+          Slider.Size        = UDim2.new(1, 0, 0, SliderContent.AbsoluteSize.Y + 33)
+          SliderContent.TextWrapped = true
+        end
+
+        SliderContent:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+          UpdateSliderSize()
+          UpdateSizeSection()
+        end)
+        UpdateSliderSize()
+
+        -- Value text-input box (shows current number, editable).
+        local SliderInput = Custom:Create("Frame", {
+          AnchorPoint         = Vector2.new(0, 0.5),
+          BackgroundColor3    = Theme.Accent,
+          BackgroundTransparency = 0,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(1, -155, 0.5, 0),
+          Size                = UDim2.new(0, 28, 0, 20),
+          Name                = "SliderInput",
+        }, Slider)
+        ThemeBind(SliderInput, "BackgroundColor3", "Accent")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 2) }, SliderInput)
+
+        local TextBox = Custom:Create("TextBox", {
+          Font                = Enum.Font.GothamBold,
+          Text                = tostring(SDefault),
+          TextColor3          = Theme.Text,
+          TextSize            = 13,
+          TextWrapped         = true,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, -1, 0, 0),
+          Size                = UDim2.new(1, 0, 1, 0),
+          Name                = "TextBox",
+        }, SliderInput)
+        ThemeBind(TextBox, "TextColor3", "Text")
+
+        -- The slider track (background bar).
+        local SliderTrack = Custom:Create("Frame", {
+          AnchorPoint         = Vector2.new(1, 0.5),
+          BackgroundColor3    = Theme.Stroke,
+          BackgroundTransparency = 0.5,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(1, -20, 0.5, 0),
+          Size                = UDim2.new(0, 100, 0, 4),
+          Name                = "SliderTrack",
+        }, Slider)
+        ThemeBind(SliderTrack, "BackgroundColor3", "Stroke")
+
+        Custom:Create("UICorner", {}, SliderTrack)
+
+        -- Filled portion of the slider track (shows progress in Accent color).
+        local SliderFill = Custom:Create("Frame", {
+          AnchorPoint         = Vector2.new(0, 0.5),
+          BackgroundColor3    = Theme.Accent,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 0, 0.5, 0),
+          Size                = UDim2.new(0.9, 0, 0, 4),
+          Name                = "SliderFill",
+        }, SliderTrack)
+        ThemeBind(SliderFill, "BackgroundColor3", "Accent")
+
+        Custom:Create("UICorner", {}, SliderFill)
+
+        -- The draggable handle circle at the end of the fill.
+        local SliderHandle = Custom:Create("Frame", {
+          AnchorPoint         = Vector2.new(1, 0.5),
+          BackgroundColor3    = Theme.Accent,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(1, 4, 0.5, 0),
+          Size                = UDim2.new(0, 10, 0, 10),
+          Name                = "SliderHandle",
+        }, SliderFill)
+        ThemeBind(SliderHandle, "BackgroundColor3", "Accent")
+
+        Custom:Create("UICorner", {}, SliderHandle)
+
+        -- Handle outline stroke.
+        local HandleStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Text,
+          Thickness   = 1.5,
+        }, SliderHandle)
+        ThemeBind(HandleStroke, "Color", "Text")
+
+        local Dragging = false
+
+        -- Rounds a number to the nearest increment.
+        local function Round(n, factor)
+          local result = math.floor(n / factor + (math.sign(n) * 0.5)) * factor
+          if result < 0 then result = result + factor end
+          return result
+        end
+
+        function SFuncs:Set(value)
+          value         = math.clamp(Round(value, Increment), SMin, SMax)
+          SFuncs.Value  = value
+          TextBox.Text  = tostring(value)
+          TweenService:Create(SliderFill, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+            Size = UDim2.fromScale((value - SMin) / (SMax - SMin), 1)
+          }):Play()
+        end
+
+        -- Mouse/touch drag on the track.
+        SliderTrack.InputBegan:Connect(function(input)
+          if input.UserInputType == Enum.UserInputType.MouseButton1
+          or input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = true
+          end
+        end)
+
+        SliderTrack.InputEnded:Connect(function(input)
+          if input.UserInputType == Enum.UserInputType.MouseButton1
+          or input.UserInputType == Enum.UserInputType.Touch then
+            Dragging = false
+            SCallback(SFuncs.Value)
+          end
+        end)
+
+        local _LastX = nil
+        UserInputService.InputChanged:Connect(function(input)
+          if Dragging then
+            local cx = input.Position.X
+            if cx ~= _LastX then
+              _LastX = cx
+              local scale = math.clamp((cx - SliderTrack.AbsolutePosition.X) / SliderTrack.AbsoluteSize.X, 0, 1)
+              SFuncs:Set(SMin + ((SMax - SMin) * scale))
+            end
+          end
+        end)
+
+        -- Validate typed number input (strip non-digits, clamp to max).
+        TextBox:GetPropertyChangedSignal("Text"):Connect(function()
+          local valid = TextBox.Text:gsub("[^%d]", "")
+          if valid ~= "" then
+            TextBox.Text = tostring(math.min(tonumber(valid), SMax))
+          else
+            TextBox.Text = "0"
+          end
+        end)
+
+        TextBox.FocusLost:Connect(function()
+          local val = tonumber(TextBox.Text) or 0
+          SFuncs:Set(val)
+          SCallback(SFuncs.Value)
+        end)
+
+        SFuncs:Set(SDefault)
+        SCallback(SFuncs.Value)
+
+        ItemCount += 1
+        return SFuncs
+      end
+
+      -- ── Input (TextBox) ────────────────────────────────────
+      -- A labeled text-entry field.
+      function Item:AddInput(Config)
+        local ITitle    = Config[1] or Config.Title    or ""
+        local IContent  = Config[2] or Config.Content  or ""
+        local IDefault  = Config[3] or Config.Default  or ""
+        local ICallback = Config[4] or Config.Callback or function() end
+        local IFuncs    = { Value = IDefault }
+
+        local InputRow = Custom:Create("Frame", {
+          BackgroundColor3    = Theme.Surface,
+          BackgroundTransparency = 0.6,
+          BorderSizePixel     = 0,
+          LayoutOrder         = ItemCount,
+          Size                = UDim2.new(1, 0, 0, 35),
+          Name                = "Input",
+        }, SectionAdd)
+        ThemeBind(InputRow, "BackgroundColor3", "Surface")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, InputRow)
+
+        -- UIStroke that highlights in Accent color when focused.
+        local InputStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 1,
+          Transparency = 0.5,
+        }, InputRow)
+        ThemeBind(InputStroke, "Color", "Stroke")
+
+        Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = ITitle,
+          TextColor3          = Theme.Text,
+          TextSize            = 13,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Top,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 10),
+          Size                = UDim2.new(1, -180, 0, 13),
+          Name                = "InputTitle",
+        }, InputRow)
+
+        local InputContent = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = IContent,
+          TextColor3          = Theme.SubText,
+          TextSize            = 12,
+          TextWrapped         = true,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Bottom,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 23),
+          Size                = UDim2.new(1, -180, 0, 12),
+          Name                = "InputContent",
+        }, InputRow)
+        ThemeBind(InputContent, "TextColor3", "SubText")
+
+        local function UpdateInputSize()
+          local ratio = InputContent.TextBounds.X / math.max(InputContent.AbsoluteSize.X, 1)
+          InputContent.Size = UDim2.new(1, -180, 0, 12 + (12 * math.floor(ratio)))
+          InputRow.Size     = UDim2.new(1, 0, 0, InputContent.AbsoluteSize.Y + 33)
+        end
+
+        UpdateInputSize()
+        InputContent:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+          InputContent.TextWrapped = false
+          UpdateInputSize()
+          InputContent.TextWrapped = true
+          UpdateSizeSection()
+        end)
+
+        -- The text-entry area on the right side of the row.
+        local InputField = Custom:Create("Frame", {
+          AnchorPoint         = Vector2.new(1, 0.5),
+          BackgroundColor3    = Theme.Background,
+          BackgroundTransparency = 0.2,
+          BorderSizePixel     = 0,
+          ClipsDescendants    = true,
+          Position            = UDim2.new(1, -7, 0.5, 0),
+          Size                = UDim2.new(0, 148, 0, 26),
+          Name                = "InputField",
+        }, InputRow)
+        ThemeBind(InputField, "BackgroundColor3", "Background")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, InputField)
+
+        -- UIStroke on the field that glows in Accent when focused.
+        local FieldStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 1.2,
+          Transparency = 0.4,
+        }, InputField)
+        ThemeBind(FieldStroke, "Color", "Stroke")
+
+        local InputTextBox = Custom:Create("TextBox", {
+          CursorPosition      = -1,
+          Font                = Enum.Font.GothamBold,
+          PlaceholderText     = "Enter value...",
+          PlaceholderColor3   = Theme.SubText,
+          Text                = "",
+          TextColor3          = Theme.Text,
+          TextSize            = 12,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          AnchorPoint         = Vector2.new(0, 0.5),
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 6, 0.5, 0),
+          Size                = UDim2.new(1, -12, 1, -8),
+          Name                = "InputTextBox",
+        }, InputField)
+        ThemeBind(InputTextBox, "TextColor3", "Text")
+        ThemeBind(InputTextBox, "PlaceholderColor3", "SubText")
+
+        -- Accent-colored focus border when the textbox is active.
+        InputTextBox.Focused:Connect(function()
+          TweenService:Create(FieldStroke, TweenInfo.new(0.15), { Color = Theme.Accent, Transparency = 0 }):Play()
+          TweenService:Create(InputStroke, TweenInfo.new(0.15), { Color = Theme.Accent, Transparency = 0.2 }):Play()
+        end)
+        InputTextBox.FocusLost:Connect(function()
+          TweenService:Create(FieldStroke, TweenInfo.new(0.15), { Color = Theme.Stroke, Transparency = 0.4 }):Play()
+          TweenService:Create(InputStroke, TweenInfo.new(0.15), { Color = Theme.Stroke, Transparency = 0.5 }):Play()
+          IFuncs:Set(InputTextBox.Text)
+        end)
+
+        function IFuncs:Set(value)
+          InputTextBox.Text = value
+          IFuncs.Value      = value
+          ICallback(value)
+        end
+
+        IFuncs:Set(IDefault)
+
+        ItemCount += 1
+        return IFuncs
+      end
+
+      -- ── Dropdown ────────────────────────────────────────────
+      -- A multi- or single-select dropdown with search.
+      function Item:AddDropdown(Config)
+        local DTitle    = Config[1] or Config.Title    or ""
+        local DContent  = Config[2] or Config.Content  or ""
+        local Multi     = Config[3] or Config.Multi    or false
+        local Options   = Config[4] or Config.Options  or {}
+        local DDefault  = Config[5] or Config.Default  or {}
+        local DCallback = Config[6] or Config.Callback or function() end
+        local DFuncs    = { Value = DDefault, Options = Options }
+
+        local DropRow = Custom:Create("Frame", {
+          BackgroundColor3    = Theme.Surface,
+          BackgroundTransparency = 0.6,
+          BorderSizePixel     = 0,
+          LayoutOrder         = ItemCount,
+          Size                = UDim2.new(1, 0, 0, 35),
+          Name                = "Dropdown",
+        }, SectionAdd)
+        ThemeBind(DropRow, "BackgroundColor3", "Surface")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, DropRow)
+
+        -- UIStroke on the dropdown row.
+        local DropStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 1,
+          Transparency = 0.5,
+        }, DropRow)
+        ThemeBind(DropStroke, "Color", "Stroke")
+
+        -- Invisible full-area button opens the dropdown panel.
+        local DropBtn = Custom:Create("TextButton", {
+          Font                = Enum.Font.SourceSans,
+          Text                = "",
+          BackgroundTransparency = 0.999,
+          BorderSizePixel     = 0,
+          Size                = UDim2.new(1, 0, 1, 0),
+          Name                = "DropBtn",
+        }, DropRow)
+
+        local DropTitle = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = DTitle,
+          TextColor3          = Theme.Text,
+          TextSize            = 13,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Top,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 10),
+          Size                = UDim2.new(1, -180, 0, 13),
+          Name                = "DropdownTitle",
+        }, DropRow)
+        ThemeBind(DropTitle, "TextColor3", "Text")
+
+        local DropContent = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = DContent,
+          TextColor3          = Theme.SubText,
+          TextSize            = 12,
+          TextWrapped         = true,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          TextYAlignment      = Enum.TextYAlignment.Bottom,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 10, 0, 23),
+          Size                = UDim2.new(1, -180, 0, 12),
+          Name                = "DropdownContent",
+        }, DropRow)
+        ThemeBind(DropContent, "TextColor3", "SubText")
+
+        DropContent.Size = UDim2.new(1, -180, 0, 12 + (12 * (DropContent.TextBounds.X // math.max(DropContent.AbsoluteSize.X, 1))))
+        DropContent.TextWrapped = true
+        DropRow.Size = UDim2.new(1, 0, 0, DropContent.AbsoluteSize.Y + 33)
+
+        DropContent:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+          DropContent.TextWrapped = false
+          DropContent.Size = UDim2.new(1, -180, 0, 12 + (12 * (DropContent.TextBounds.X // math.max(DropContent.AbsoluteSize.X, 1))))
+          DropRow.Size = UDim2.new(1, 0, 0, DropContent.AbsoluteSize.Y + 33)
+          DropContent.TextWrapped = true
+          UpdateSizeSection()
+        end)
+
+        -- Right-side selection display frame.
+        local SelectBox = Custom:Create("Frame", {
+          AnchorPoint         = Vector2.new(1, 0.5),
+          BackgroundColor3    = Theme.Background,
+          BackgroundTransparency = 0.3,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(1, -7, 0.5, 0),
+          Size                = UDim2.new(0, 148, 0, 26),
+          LayoutOrder         = CountDropdown,
+          Name                = "SelectBox",
+        }, DropRow)
+        ThemeBind(SelectBox, "BackgroundColor3", "Background")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 4) }, SelectBox)
+
+        -- UIStroke on the selection display box.
+        local SelectStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 1.2,
+          Transparency = 0.4,
+        }, SelectBox)
+        ThemeBind(SelectStroke, "Color", "Stroke")
+
+        -- Label that shows the currently selected option(s).
+        local OptionSelecting = Custom:Create("TextLabel", {
+          Font                = Enum.Font.GothamBold,
+          Text                = "Select Options",
+          TextColor3          = Theme.SubText,
+          TextSize            = 12,
+          TextWrapped         = true,
+          TextXAlignment      = Enum.TextXAlignment.Left,
+          AnchorPoint         = Vector2.new(0, 0.5),
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(0, 6, 0.5, 0),
+          Size                = UDim2.new(1, -30, 1, -6),
+          Name                = "OptionSelecting",
+        }, SelectBox)
+        ThemeBind(OptionSelecting, "TextColor3", "SubText")
+
+        -- Small chevron arrow icon to indicate this is a dropdown.
+        Custom:Create("ImageLabel", {
+          Image               = "rbxassetid://90200523188815",
+          ImageColor3         = Theme.SubText,
+          AnchorPoint         = Vector2.new(1, 0.5),
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Position            = UDim2.new(1, 0, 0.5, 0),
+          Size                = UDim2.new(0, 22, 0, 22),
+          Name                = "ChevronIcon",
+        }, SelectBox)
+
+        -- Open the floating dropdown panel on click.
+        DropBtn.Activated:Connect(function()
+          if not MoreBlur.Visible then
+            MoreBlur.Visible = true
+            local dropLayout = DropdownFolder:FindFirstChild("DropPageLayout")
+            if dropLayout then
+              dropLayout:JumpToIndex(SelectBox.LayoutOrder)
+            end
+            local info = TweenInfo.new(0.12)
+            TweenService:Create(MoreBlur, info, { BackgroundTransparency = 0.65 }):Play()
+            TweenService:Create(DropdownSelect, info, { Position = UDim2.new(1, -11, 0.5, 0) }):Play()
+            -- Accent the selection box stroke when the panel is open.
+            TweenService:Create(SelectStroke, info, { Color = Theme.Accent, Transparency = 0 }):Play()
+          end
+        end)
+
+        -- Restore the selection box stroke when the panel closes.
+        ConnectButton.Activated:Connect(function()
+          TweenService:Create(SelectStroke, TweenInfo.new(0.12), { Color = Theme.Stroke, Transparency = 0.4 }):Play()
+        end)
+
+        -- Folder for the dropdown's own scroll list.
+        local DropFolder = Custom:Create("Folder", {
+          Name = "DropFolder_" .. tostring(CountDropdown),
+        }, DropdownFolder)
+
+        local ScrollSelect = Custom:Create("ScrollingFrame", {
+          CanvasSize          = UDim2.new(0, 0, 0, 0),
+          ScrollBarThickness  = 2,
+          ScrollBarImageColor3 = Theme.Accent,
+          Active              = true,
+          LayoutOrder         = CountDropdown,
+          BackgroundTransparency = 1,
+          BorderSizePixel     = 0,
+          Size                = UDim2.new(1, 0, 1, 0),
+          Name                = "ScrollSelect",
+        }, DropdownFolder)
+        ThemeBind(ScrollSelect, "ScrollBarImageColor3", "Accent")
+
+        Custom:Create("UIListLayout", {
+          Padding   = UDim.new(0, 3),
+          SortOrder = Enum.SortOrder.LayoutOrder,
+        }, ScrollSelect)
+
+        -- Search bar at the top of the dropdown list.
+        local SearchBar = Custom:Create("TextBox", {
+          Font                = Enum.Font.GothamBold,
+          PlaceholderText     = "Search...",
+          PlaceholderColor3   = Theme.SubText,
+          Text                = "",
+          TextColor3          = Theme.Text,
+          TextSize            = 12,
+          BackgroundColor3    = Theme.Background,
+          BackgroundTransparency = 0.2,
+          BorderSizePixel     = 0,
+          Size                = UDim2.new(1, 0, 0, 22),
+          Name                = "SearchBar",
+        }, ScrollSelect)
+        ThemeBind(SearchBar, "TextColor3", "Text")
+        ThemeBind(SearchBar, "PlaceholderColor3", "SubText")
+        ThemeBind(SearchBar, "BackgroundColor3", "Background")
+
+        Custom:Create("UICorner", { CornerRadius = UDim.new(0, 3) }, SearchBar)
+
+        local SearchStroke = Custom:Create("UIStroke", {
+          Color       = Theme.Stroke,
+          Thickness   = 1,
+          Transparency = 0.4,
+        }, SearchBar)
+        ThemeBind(SearchStroke, "Color", "Stroke")
+
+        SearchBar.Focused:Connect(function()
+          TweenService:Create(SearchStroke, TweenInfo.new(0.12), { Color = Theme.Accent, Transparency = 0 }):Play()
+        end)
+        SearchBar.FocusLost:Connect(function()
+          TweenService:Create(SearchStroke, TweenInfo.new(0.12), { Color = Theme.Stroke, Transparency = 0.4 }):Play()
+        end)
+
+        -- Filter options by the search query as the user types.
+        SearchBar:GetPropertyChangedSignal("Text"):Connect(function()
+          local query = string.lower(SearchBar.Text)
+          for _, v in pairs(ScrollSelect:GetChildren()) do
+            if v:IsA("Frame") and v.Name == "DropOption" then
+              local labelObj = v:FindFirstChild("OptionText")
+              if labelObj then
+                v.Visible = string.find(string.lower(labelObj.Text), query) ~= nil
+              end
+            end
+          end
+        end)
+
+        local DropCount = 0
+
+        -- Clears all options from the dropdown.
+        function DFuncs:Clear()
+          for _, f in pairs(ScrollSelect:GetChildren()) do
+            if f.Name == "DropOption" then
+              DFuncs.Value   = {}
+              DFuncs.Options = {}
+              OptionSelecting.Text = "Select Options"
+              f:Destroy()
+            end
+          end
+        end
+
+        -- Sets the currently selected value(s) and updates the UI.
+        function DFuncs:Set(value)
+          DFuncs.Value = value or DFuncs.Value
+          local info   = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+
+          for _, drop in pairs(ScrollSelect:GetChildren()) do
+            if drop.Name ~= "UIListLayout" and drop.Name ~= "SearchBar" and drop:IsA("Frame") then
+              local found = table.find(DFuncs.Value, drop:FindFirstChild("OptionText") and drop.OptionText.Text)
+              local size  = found and UDim2.new(0, 1, 0, 12) or UDim2.new(0, 0, 0, 0)
+              local alpha = found and 0.935 or 0.999
+              local sAlpha = found and 0 or 0.999
+
+              if drop:FindFirstChild("ChooseFrame") then
+                TweenService:Create(drop.ChooseFrame, info, { Size = size }):Play()
+                if drop.ChooseFrame:FindFirstChild("UIStroke") then
+                  TweenService:Create(drop.ChooseFrame.UIStroke, info, { Transparency = sAlpha }):Play()
+                end
+              end
+              TweenService:Create(drop, info, { BackgroundTransparency = alpha }):Play()
+            end
+          end
+
+          local joined = table.concat(DFuncs.Value, ", ")
+          OptionSelecting.Text = joined ~= "" and joined or "Select Options"
+          DCallback(DFuncs.Value)
+        end
+
+        -- Adds a new option entry to the dropdown list.
+        function DFuncs:AddOption(optionName)
+          optionName = optionName or "Option"
+
+          local DropOption = Custom:Create("Frame", {
+            BackgroundColor3    = Theme.Surface,
+            BackgroundTransparency = 0.999,
+            BorderSizePixel     = 0,
+            LayoutOrder         = DropCount,
+            Size                = UDim2.new(1, 0, 0, 30),
+            Name                = "DropOption",
+          }, ScrollSelect)
+          ThemeBind(DropOption, "BackgroundColor3", "Surface")
+
+          Custom:Create("UICorner", { CornerRadius = UDim.new(0, 3) }, DropOption)
+
+          -- Stroke on each option row.
+          local OptionStroke = Custom:Create("UIStroke", {
+            Color       = Theme.Stroke,
+            Thickness   = 1,
+            Transparency = 0.7,
+          }, DropOption)
+          ThemeBind(OptionStroke, "Color", "Stroke")
+
+          -- Invisible button to receive click.
+          local OptionBtn = Custom:Create("TextButton", {
+            Font                = Enum.Font.GothamBold,
+            Text                = "",
+            BackgroundTransparency = 0.999,
+            BorderSizePixel     = 0,
+            Size                = UDim2.new(1, 0, 1, 0),
+            Name                = "OptionBtn",
+          }, DropOption)
+
+          -- Visible label for this option's name.
+          Custom:Create("TextLabel", {
+            Font                = Enum.Font.GothamBold,
+            Text                = optionName,
+            TextColor3          = Theme.Text,
+            TextSize            = 13,
+            TextXAlignment      = Enum.TextXAlignment.Left,
+            TextYAlignment      = Enum.TextYAlignment.Top,
+            BackgroundTransparency = 1,
+            BorderSizePixel     = 0,
+            Position            = UDim2.new(0, 8, 0, 8),
+            Size                = UDim2.new(1, -100, 0, 13),
+            Name                = "OptionText",
+          }, DropOption)
+
+          -- Selected indicator bar on the left edge of the option.
+          local ChooseFrame = Custom:Create("Frame", {
+            AnchorPoint         = Vector2.new(0, 0.5),
+            BackgroundColor3    = Theme.Accent,
+            BorderSizePixel     = 0,
+            Position            = UDim2.new(0, 2, 0.5, 0),
+            Size                = UDim2.new(0, 0, 0, 0),
+            Name                = "ChooseFrame",
+          }, DropOption)
+          ThemeBind(ChooseFrame, "BackgroundColor3", "Accent")
+
+          local ChooseStroke = Custom:Create("UIStroke", {
+            Color       = Theme.Accent,
+            Thickness   = 1.6,
+            Transparency = 0.999,
+          }, ChooseFrame)
+          ThemeBind(ChooseStroke, "Color", "Accent")
+
+          Custom:Create("UICorner", {}, ChooseFrame)
+
+          -- Handle selecting/deselecting this option.
+          OptionBtn.Activated:Connect(function()
+            CircleClick(OptionBtn, Player:GetMouse().X, Player:GetMouse().Y)
+            local isSelected = DropOption.BackgroundTransparency > 0.95
+
+            if Multi then
+              if isSelected then
+                if not table.find(DFuncs.Value, optionName) then
+                  table.insert(DFuncs.Value, optionName)
+                end
+              else
+                for i, v in ipairs(DFuncs.Value) do
+                  if v == optionName then
+                    table.remove(DFuncs.Value, i)
+                    break
+                  end
+                end
+              end
+            else
+              -- Single-select: replace the whole value.
+              DFuncs.Value = { optionName }
+            end
+
+            DFuncs:Set(DFuncs.Value)
+          end)
+
+          -- Update scroll canvas to fit the new option.
+          local function UpdateCanvas()
+            local h = 0
+            for _, child in ipairs(ScrollSelect:GetChildren()) do
+              if child.Name ~= "UIListLayout" and child.Name ~= "SearchBar" then
+                h = h + 5 + child.Size.Y.Offset
+              end
+            end
+            ScrollSelect.CanvasSize = UDim2.new(0, 0, 0, h)
+          end
+
+          UpdateCanvas()
+          DropCount += 1
+        end
+
+        -- Replaces the entire option list and applies new selection.
+        function DFuncs:Refresh(list, selecting)
+          list      = list      or {}
+          selecting = selecting or {}
+          DFuncs:Clear()
+          for _, name in ipairs(list) do
+            DFuncs:AddOption(name)
+          end
+          DFuncs.Options = list
+          DFuncs:Set(selecting)
+        end
+
+        DFuncs:Refresh(DFuncs.Options, DFuncs.Value)
+
+        ItemCount  += 1
+        CountDropdown += 1
+        return DFuncs
+      end -- AddDropdown
+
+      ItemCount += 1
+      return Item
+    end -- AddSection
+
+    CountSection += 1
+    CountTab    += 1
+    return Sections
+  end -- CreateTab
+
+  return Tabs
+end -- CreateWindow
+
+-- ============================================================
+return MIXUSFIELD_Library
+-- ============================================================
