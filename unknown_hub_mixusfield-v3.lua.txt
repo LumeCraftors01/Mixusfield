@@ -11,7 +11,7 @@ local LocalPlayer      = Players.LocalPlayer
 
 -- 📚 Load MIXUSFIELD v3
 local lib = loadstring(game:HttpGet(
-    "https://raw.githubusercontent.com/LumeCraftors01/Mixusfield/refs/heads/main/MIXUSFIELD_Library_v3.lua.txt"
+    "https://raw.githubusercontent.com/LumeCraftors01/Mixusfield/refs/heads/main/MIXUSFIELD_Library_v3.lua%20(1).txt"
 ))()
 
 -- 📝 Basic Info
