@@ -1,0 +1,418 @@
+-- ============================================================
+-- MIXUSFIELD v3 - Full Example Script
+-- Load this in your executor after hosting the library
+-- ============================================================
+
+-- Load the library (replace the URL with your GitHub raw link)
+local MIXUSFIELD = loadstring(game:HttpGet(
+  "https://raw.githubusercontent.com/YourUser/YourRepo/main/MIXUSFIELD_Library_v3.lua"
+))()
+
+-- ============================================================
+-- OPTIONAL: Point the save file to a custom name
+-- All saved values will persist in this file between sessions
+-- ============================================================
+MIXUSFIELD:SetSaveFile("MyScript_Save.json")
+
+-- ============================================================
+-- OPTIONAL: Key System
+-- Remove this block if you don't need key protection
+-- SaveKey = remembers the accepted key so user only types once
+-- Expiry  = how many seconds until the saved key expires (0 = never)
+-- ============================================================
+MIXUSFIELD:KeySystem({
+  Title    = "MIXUSFIELD",
+  SubTitle = "My Awesome Script",
+  Note     = "Get the key from our Discord server.",
+  Key      = "mySecretKey123",
+  SaveKey  = "scriptKey",   -- saves accepted key to file
+  Expiry   = 86400,         -- re-ask after 24 hours (86400 seconds)
+  Callback = function()
+    print("Key accepted!")
+  end,
+}, function()
+  -- This runs after the key is accepted (build your UI here)
+  BuildUI()
+end)
+
+-- ============================================================
+-- MAIN UI BUILDER
+-- ============================================================
+function BuildUI()
+
+  -- Create the main window
+  local Tabs = MIXUSFIELD:CreateWindow({
+    Title       = "MyScript",
+    Description = "v1.0",
+    ["Tab Width"] = 110,
+    SizeUi      = UDim2.fromOffset(560, 330),
+  })
+
+  -- ============================================================
+  -- TAB 1: Main
+  -- ============================================================
+  local MainTab = Tabs:CreateTab({
+    Name = "Main",
+    Icon = "rbxassetid://10723407389",  -- home icon
+  })
+
+  -- Section: Combat
+  local CombatSection = MainTab:AddSection("Combat", true)
+
+  -- Toggle with SaveKey (remembers on/off between sessions)
+  local AimbotToggle = CombatSection:AddToggle({
+    Title    = "Aimbot",
+    Content  = "Automatically aims at the nearest player",
+    Default  = false,
+    SaveKey  = "aimbot_enabled",   -- auto-saves to file
+    Callback = function(value)
+      if value then
+        print("Aimbot ON")
+        -- your aimbot logic here
+      else
+        print("Aimbot OFF")
+      end
+    end,
+  })
+
+  local SilentAim = CombatSection:AddToggle({
+    Title    = "Silent Aim",
+    Content  = "Hits without moving your crosshair",
+    Default  = false,
+    SaveKey  = "silentaim_enabled",
+    Callback = function(value)
+      print("Silent Aim:", value)
+    end,
+  })
+
+  -- Slider with SaveKey
+  local FOVSlider = CombatSection:AddSlider({
+    Title     = "FOV Size",
+    Content   = "Aimbot detection radius in studs",
+    Increment = 5,
+    Min       = 10,
+    Max       = 500,
+    Default   = 150,
+    SaveKey   = "aimbot_fov",   -- auto-saves the slider value
+    Callback  = function(value)
+      print("FOV set to:", value)
+    end,
+  })
+
+  -- Keybind with SaveKey
+  local AimbotKey = CombatSection:AddKeybind({
+    Title    = "Aimbot Key",
+    Content  = "Hold this key to activate aimbot",
+    Default  = Enum.KeyCode.Q,
+    SaveKey  = "aimbot_key",   -- saves the bound key
+    Callback = function(keyCode)
+      print("Aimbot key pressed:", keyCode.Name)
+    end,
+  })
+
+  -- Section: Movement
+  local MovSection = MainTab:AddSection("Movement", true)
+
+  local SpeedToggle = MovSection:AddToggle({
+    Title    = "Speed Hack",
+    Content  = "Increases your walk speed",
+    Default  = false,
+    SaveKey  = "speed_enabled",
+    Callback = function(value)
+      local char = game.Players.LocalPlayer.Character
+      if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = value and 50 or 16
+      end
+    end,
+  })
+
+  local SpeedSlider = MovSection:AddSlider({
+    Title     = "Walk Speed",
+    Content   = "How fast you move",
+    Increment = 1,
+    Min       = 16,
+    Max       = 200,
+    Default   = 50,
+    SaveKey   = "speed_value",
+    Callback  = function(value)
+      local char = game.Players.LocalPlayer.Character
+      if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = value
+      end
+    end,
+  })
+
+  local NoclipToggle = MovSection:AddToggle({
+    Title    = "Noclip",
+    Content  = "Walk through walls",
+    Default  = false,
+    SaveKey  = "noclip_enabled",
+    Callback = function(value)
+      print("Noclip:", value)
+      -- your noclip logic here
+    end,
+  })
+
+  -- ============================================================
+  -- TAB 2: Farm
+  -- ============================================================
+  local FarmTab = Tabs:CreateTab({
+    Name = "Farm",
+    Icon = "rbxassetid://10734950309",  -- star icon
+  })
+
+  local AutoSection = FarmTab:AddSection("Auto Farm", true)
+
+  local AutoFarmToggle = AutoSection:AddToggle({
+    Title    = "Auto Farm",
+    Content  = "Automatically farms resources",
+    Default  = false,
+    SaveKey  = "autofarm_enabled",
+    Callback = function(value)
+      print("Auto Farm:", value)
+    end,
+  })
+
+  local AutoSellToggle = AutoSection:AddToggle({
+    Title    = "Auto Sell",
+    Content  = "Automatically sells items when full",
+    Default  = false,
+    SaveKey  = "autosell_enabled",
+    Callback = function(value)
+      print("Auto Sell:", value)
+    end,
+  })
+
+  local FarmSpeedSlider = AutoSection:AddSlider({
+    Title     = "Farm Speed",
+    Content   = "How fast the farm loop runs",
+    Increment = 0.1,
+    Min       = 0.1,
+    Max       = 5,
+    Default   = 1,
+    SaveKey   = "farm_speed",
+    Callback  = function(value)
+      print("Farm speed:", value)
+    end,
+  })
+
+  -- Progress bar showing farm progress
+  local FarmProgress = AutoSection:AddProgressBar({
+    Title   = "Farm Progress",
+    Content = "Items collected this session",
+    Min     = 0,
+    Max     = 100,
+    Default = 0,
+  })
+
+  -- Example: update the progress bar somewhere in your loop
+  -- FarmProgress:Set(75)   -- sets it to 75 out of 100
+
+  -- Dropdown for target selection
+  local TargetDropdown = AutoSection:AddDropdown({
+    Title    = "Farm Target",
+    Content  = "What to farm",
+    Multi    = false,  -- single select
+    Options  = { "Gold", "Iron", "Wood", "Stone", "Gems" },
+    Default  = { "Gold" },
+    SaveKey  = "farm_target",
+    Callback = function(value)
+      print("Farming:", value[1])
+    end,
+  })
+
+  -- Multi-select dropdown
+  local IgnoreList = AutoSection:AddDropdown({
+    Title    = "Ignore Players",
+    Content  = "Skip these players while farming",
+    Multi    = true,  -- multi select
+    Options  = { "Player1", "Player2", "Player3", "Player4" },
+    Default  = {},
+    SaveKey  = "farm_ignore",
+    Callback = function(value)
+      print("Ignoring:", table.concat(value, ", "))
+    end,
+  })
+
+  -- ============================================================
+  -- TAB 3: Teleport
+  -- ============================================================
+  local TpTab = Tabs:CreateTab({
+    Name = "Teleport",
+    Icon = "rbxassetid://10734946882",
+  })
+
+  local TpSection = TpTab:AddSection("Locations", true)
+
+  TpSection:AddButton({
+    Title    = "Spawn",
+    Content  = "Teleport to the spawn point",
+    Icon     = "rbxassetid://7734010488",
+    Callback = function()
+      print("Teleporting to spawn...")
+      -- game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = ...
+      MIXUSFIELD:SetNotification({
+        Title       = "Teleport",
+        Description = "Success",
+        Content     = "Teleported to Spawn.",
+        Time        = 0.4,
+        Delay       = 3,
+      })
+    end,
+  })
+
+  TpSection:AddButton({
+    Title    = "Market",
+    Content  = "Teleport to the market area",
+    Icon     = "rbxassetid://7734010488",
+    Callback = function()
+      print("Teleporting to market...")
+      MIXUSFIELD:SetNotification({
+        Title       = "Teleport",
+        Description = "Success",
+        Content     = "Teleported to Market.",
+        Time        = 0.4,
+        Delay       = 3,
+      })
+    end,
+  })
+
+  TpSection:AddButton({
+    Title    = "Boss Arena",
+    Content  = "Teleport to the boss fight zone",
+    Icon     = "rbxassetid://7734010488",
+    Callback = function()
+      print("Teleporting to boss...")
+    end,
+  })
+
+  -- Custom teleport input
+  local CustomTpSection = TpTab:AddSection("Custom Teleport", false)
+
+  local TpX = CustomTpSection:AddInput({
+    Title    = "X",
+    Content  = "X coordinate",
+    Default  = "0",
+    SaveKey  = "tp_x",
+    Callback = function(value) end,
+  })
+
+  local TpY = CustomTpSection:AddInput({
+    Title    = "Y",
+    Content  = "Y coordinate",
+    Default  = "0",
+    SaveKey  = "tp_y",
+    Callback = function(value) end,
+  })
+
+  local TpZ = CustomTpSection:AddInput({
+    Title    = "Z",
+    Content  = "Z coordinate",
+    Default  = "0",
+    SaveKey  = "tp_z",
+    Callback = function(value) end,
+  })
+
+  CustomTpSection:AddButton({
+    Title    = "Teleport to Coords",
+    Content  = "Go to the X Y Z above",
+    Icon     = "rbxassetid://7734010488",
+    Callback = function()
+      local x = tonumber(TpX.Value) or 0
+      local y = tonumber(TpY.Value) or 0
+      local z = tonumber(TpZ.Value) or 0
+      local char = game.Players.LocalPlayer.Character
+      if char and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = CFrame.new(x, y, z)
+        MIXUSFIELD:SetNotification({
+          Title   = "Teleport",
+          Content = string.format("Moved to (%d, %d, %d)", x, y, z),
+          Delay   = 3,
+        })
+      end
+    end,
+  })
+
+  -- ============================================================
+  -- TAB 4: Settings
+  -- ============================================================
+  local SettingsTab = Tabs:CreateTab({
+    Name = "Settings",
+    Icon = "rbxassetid://10734950309",
+  })
+
+  local UISection = SettingsTab:AddSection("Interface", true)
+
+  -- Built-in theme picker (saves chosen theme automatically)
+  UISection:AddThemePicker({
+    Title   = "Theme",
+    Content = "Pick a color theme for the UI",
+    SaveKey = "ui_theme",   -- auto-saves and loads on next session
+  })
+
+  UISection:AddSeperator({ Title = "Notifications" })
+
+  -- Test notification button
+  UISection:AddButton({
+    Title    = "Test Notification",
+    Content  = "Sends a sample toast notification",
+    Icon     = "rbxassetid://7734010488",
+    Callback = function()
+      MIXUSFIELD:SetNotification({
+        Title       = "Hello!",
+        Description = "Test",
+        Content     = "This is a test notification from MIXUSFIELD v3.",
+        Time        = 0.4,
+        Delay       = 5,
+        Icon        = "rbxassetid://10723407389",
+      })
+    end,
+  })
+
+  local InfoSection = SettingsTab:AddSection("About", false)  -- starts collapsed
+
+  InfoSection:AddParagraph({
+    Title   = "MIXUSFIELD v3",
+    Content = "A Roblox UI library by LumeCraftor. Features include theme switching, data persistence, keybinds, dropdowns, sliders, toggles, and more.",
+  })
+
+  InfoSection:AddLine()
+
+  InfoSection:AddParagraph({
+    Title   = "Save File",
+    Content = "Your settings are saved to: MyScript_Save.json",
+  })
+
+  -- Clear all saved data button
+  InfoSection:AddButton({
+    Title    = "Reset All Settings",
+    Content  = "Clears every saved value from the file",
+    Icon     = "rbxassetid://7734010488",
+    Callback = function()
+      MIXUSFIELD:ClearSaved()
+      MIXUSFIELD:SetNotification({
+        Title   = "Reset",
+        Content = "All saved settings have been cleared. Rejoin to apply defaults.",
+        Delay   = 4,
+      })
+    end,
+  })
+
+  -- ============================================================
+  -- Welcome notification on load
+  -- ============================================================
+  MIXUSFIELD:SetNotification({
+    Title       = "MyScript",
+    Description = "Loaded",
+    Content     = "Script loaded successfully. Have fun!",
+    Time        = 0.5,
+    Delay       = 4,
+    Icon        = "rbxassetid://10723407389",
+  })
+
+end
+
+-- ============================================================
+-- If you don't want a key system, just call BuildUI() directly:
+-- ============================================================
+-- BuildUI()
