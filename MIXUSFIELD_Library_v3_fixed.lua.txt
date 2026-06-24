@@ -147,7 +147,62 @@ local THEMES = {
     SubText     = Color3.fromRGB(180,  95, 130),
     Stroke      = Color3.fromRGB( 80,  25,  50),
   },
+  Teal = {
+    Accent      = Color3.fromRGB( 35, 215, 200),
+    Background  = Color3.fromRGB(  6,  15,  15),
+    Surface     = Color3.fromRGB( 11,  26,  26),
+    SurfaceB    = Color3.fromRGB(  8,  20,  20),
+    Text        = Color3.fromRGB(220, 250, 248),
+    SubText     = Color3.fromRGB( 90, 165, 160),
+    Stroke      = Color3.fromRGB( 25,  80,  78),
+  },
+  Amber = {
+    Accent      = Color3.fromRGB(255, 190,  40),
+    Background  = Color3.fromRGB( 15,  11,   5),
+    Surface     = Color3.fromRGB( 28,  21,  10),
+    SurfaceB    = Color3.fromRGB( 22,  16,   7),
+    Text        = Color3.fromRGB(255, 245, 220),
+    SubText     = Color3.fromRGB(185, 150,  80),
+    Stroke      = Color3.fromRGB( 85,  65,  20),
+  },
+  Indigo = {
+    Accent      = Color3.fromRGB( 90, 110, 255),
+    Background  = Color3.fromRGB(  8,   8,  20),
+    Surface     = Color3.fromRGB( 15,  16,  38),
+    SurfaceB    = Color3.fromRGB( 12,  12,  30),
+    Text        = Color3.fromRGB(225, 228, 255),
+    SubText     = Color3.fromRGB(110, 115, 190),
+    Stroke      = Color3.fromRGB( 38,  42, 100),
+  },
+  Lime = {
+    Accent      = Color3.fromRGB(170, 230,  50),
+    Background  = Color3.fromRGB( 10,  14,   6),
+    Surface     = Color3.fromRGB( 19,  26,  11),
+    SurfaceB    = Color3.fromRGB( 15,  20,   9),
+    Text        = Color3.fromRGB(235, 248, 215),
+    SubText     = Color3.fromRGB(140, 170,  85),
+    Stroke      = Color3.fromRGB( 55,  75,  25),
+  },
+  Slate = {
+    Accent      = Color3.fromRGB(130, 160, 190),
+    Background  = Color3.fromRGB( 10,  12,  14),
+    Surface     = Color3.fromRGB( 20,  23,  27),
+    SurfaceB    = Color3.fromRGB( 16,  18,  21),
+    Text        = Color3.fromRGB(230, 236, 240),
+    SubText     = Color3.fromRGB(130, 145, 158),
+    Stroke      = Color3.fromRGB( 48,  56,  64),
+  },
+  Cherry = {
+    Accent      = Color3.fromRGB(225,  25,  70),
+    Background  = Color3.fromRGB( 13,   6,   8),
+    Surface     = Color3.fromRGB( 25,  11,  15),
+    SurfaceB    = Color3.fromRGB( 19,   8,  11),
+    Text        = Color3.fromRGB(250, 225, 230),
+    SubText     = Color3.fromRGB(175,  85, 100),
+    Stroke      = Color3.fromRGB( 80,  20,  35),
+  },
 }
+
 
 local Theme = {}
 for k, v in pairs(THEMES.Crimson) do Theme[k] = v end
