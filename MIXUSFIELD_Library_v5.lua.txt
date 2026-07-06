@@ -326,6 +326,28 @@ local function GetGuiParent()
 end
 
 -- ============================================================
+-- /// SAFE HOT-RELOAD  (destroy anything left from a previous run)
+-- ============================================================
+-- Re-running this script in the same session (extremely common while testing in an
+-- executor) used to stack a brand new window, watermark, notification stack, and
+-- open/close bubble on top of whatever the last run created, since those old instances
+-- have no Lua reference left once the previous script closure is gone.
+--
+-- Fix: every GUI this library ever creates lives inside one uniquely-named Folder.
+-- On load we look for a Folder of that name already sitting under CoreGui/PlayerGui,
+-- destroy it (wiping out literally everything from the previous run in one shot), and
+-- make a fresh one for this run to use instead.
+local MixusGuiParent = GetGuiParent()
+local existingRoot = MixusGuiParent:FindFirstChild("__MixusfieldRoot")
+if existingRoot then
+    pcall(function() existingRoot:Destroy() end)
+end
+
+local MixusRoot = Instance.new("Folder")
+MixusRoot.Name   = "__MixusfieldRoot"
+MixusRoot.Parent = MixusGuiParent
+
+-- ============================================================
 -- /// RIPPLE EFFECT  (safe against mid-tween destruction)
 -- ============================================================
 local function CircleClick(Button, X, Y)
@@ -430,7 +452,7 @@ local OPEN_BTN_SIZE = UDim2.new(0, 56, 0, 46)
 local function CreateOpenCloseButton()
     local gui = Custom:Create("ScreenGui", {
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-    }, GetGuiParent())
+    }, MixusRoot)
 
     local btn = Custom:Create("ImageButton", {
         BackgroundColor3    = Theme.Surface,
@@ -537,7 +559,7 @@ local function GetNotifGui()
   if _NotifGui and _NotifGui.Parent then return _NotifGui, _NotifLayout end
   _NotifGui = Custom:Create("ScreenGui",{
     ZIndexBehavior=Enum.ZIndexBehavior.Sibling, Name="MixusNotifGui",
-  }, GetGuiParent())
+  }, MixusRoot)
   _NotifLayout = Custom:Create("Frame",{
     AnchorPoint=Vector2.new(1,1), BackgroundTransparency=1, BorderSizePixel=0,
     Position=UDim2.new(1,-18,1,-18), Size=UDim2.new(0,300,1,0), Name="NotifLayout",
@@ -740,7 +762,7 @@ end
 function MIXUSFIELD_Library:Watermark(text)
   local wmGui = Custom:Create("ScreenGui",{
     ZIndexBehavior=Enum.ZIndexBehavior.Sibling, Name="MixusWatermark",
-  }, GetGuiParent())
+  }, MixusRoot)
 
   local wmFrame = Custom:Create("Frame",{
     AnchorPoint=Vector2.new(0,0), BackgroundColor3=Theme.Surface, BackgroundTransparency=0.2,
@@ -806,7 +828,7 @@ function MIXUSFIELD_Library:KeySystem(Config, onSuccess)
     local KeyGui = Custom:Create("ScreenGui", {
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         Name           = "MixusKeyGui",
-    }, GetGuiParent())
+    }, MixusRoot)
 
     local Overlay = Custom:Create("Frame", {
         Size                  = UDim2.new(1, 0, 1, 0),
@@ -993,7 +1015,7 @@ function MIXUSFIELD_Library:CreateWindow(Config)
 
   local MIXUSGui = Custom:Create("ScreenGui",{
     ZIndexBehavior=Enum.ZIndexBehavior.Sibling, Name="MIXUSFieldGui",
-  }, GetGuiParent())
+  }, MixusRoot)
 
   -- If a key system is configured, the window is built fully in the background but stays
   -- hidden+disabled (no rendering, no input) until the key is accepted. This way every
@@ -2201,17 +2223,26 @@ function MIXUSFIELD_Library:CreateWindow(Config)
         if MSaveKey then
           local sv=SaveSystem:Get(MSaveKey); if sv then MDef=sv end; MFuncs.Value=MDef
         end
-        local n=math.max(1,#MOptions)
-        local rowH=36+(n>3 and 28 or 0)
+        local n       = math.max(1,#MOptions)
+        local perRow  = math.min(n,4)                    -- cap so buttons stay legible
+        local rows    = math.ceil(n/perRow)
+        local BTN_H, BTN_GAP        = 24, 4
+        local LABEL_BLOCK, TOP_PAD, BOTTOM_PAD = 34, 8, 10
+        local btnAreaH = rows*BTN_H + (rows-1)*BTN_GAP
+        -- Fixed bug: the old formula (36 / 64px) put the button row directly on top of
+        -- the title+content text for the common 1-3 option case. Height is now derived
+        -- from the actual content instead of a magic constant.
+        local rowH = LABEL_BLOCK + TOP_PAD + btnAreaH + BOTTOM_PAD
         local row,stroke=MakeRow(rowH,"MultiButton")
         MakeRowLabels(row,Config[1] or Config.Title or "",Config[2] or Config.Content or "",16)
         local BtnRow=Custom:Create("Frame",{
-          BackgroundTransparency=1, BorderSizePixel=0,
-          AnchorPoint=Vector2.new(0.5,1), Position=UDim2.new(0.5,0,1,-6), Size=UDim2.new(1,-20,0,22),
+          BackgroundTransparency=1, BorderSizePixel=0, AnchorPoint=Vector2.new(0.5,0),
+          Position=UDim2.new(0.5,0,0,LABEL_BLOCK+TOP_PAD), Size=UDim2.new(1,-20,0,btnAreaH),
         }, row)
         Custom:Create("UIListLayout",{
-          FillDirection=Enum.FillDirection.Horizontal,
-          Padding=UDim.new(0,4), SortOrder=Enum.SortOrder.LayoutOrder,
+          FillDirection=Enum.FillDirection.Horizontal, Wraps=true,
+          Padding=UDim.new(0,BTN_GAP), SortOrder=Enum.SortOrder.LayoutOrder,
+          VerticalAlignment=Enum.VerticalAlignment.Top,
         }, BtnRow)
         local allBtns={}
         local function SelectOption(name)
@@ -2233,11 +2264,21 @@ function MIXUSFIELD_Library:CreateWindow(Config)
             TextColor3=active and Theme.Text or Theme.SubText, TextSize=11,
             BackgroundColor3=Theme.Accent, BackgroundTransparency=active and 0.1 or 0.8,
             BorderSizePixel=0, LayoutOrder=i,
-            Size=UDim2.new(1/n,-(4*(n-1)/n),1,0),
+            Size=UDim2.new(1/perRow,-(BTN_GAP*(perRow-1)/perRow),0,BTN_H),
           }, BtnRow)
           ThemeBind(mb,"BackgroundColor3","Accent")
           Custom:Create("UICorner",{CornerRadius=UDim.new(0,5)}, mb)
           table.insert(allBtns,mb)
+          mb.MouseEnter:Connect(function()
+            if mb.Name~=MFuncs.Value then
+              TweenService:Create(mb,TweenInfo.new(0.1),{BackgroundTransparency=0.6}):Play()
+            end
+          end)
+          mb.MouseLeave:Connect(function()
+            if mb.Name~=MFuncs.Value then
+              TweenService:Create(mb,TweenInfo.new(0.12),{BackgroundTransparency=0.8}):Play()
+            end
+          end)
           mb.Activated:Connect(function()
             CircleClick(mb,Player:GetMouse().X,Player:GetMouse().Y); SelectOption(optName)
           end)
