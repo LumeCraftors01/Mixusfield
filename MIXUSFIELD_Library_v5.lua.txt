@@ -764,9 +764,13 @@ function MIXUSFIELD_Library:Watermark(text)
     ZIndexBehavior=Enum.ZIndexBehavior.Sibling, Name="MixusWatermark",
   }, MixusRoot)
 
+  -- Anchored bottom-left instead of top-left: the top-left corner is where the window's
+  -- topbar and tab list live, so a fixed top-left watermark sat directly on top of them
+  -- on narrower/mobile screens. Bottom-left stays clear of the window chrome and of
+  -- Roblox's own top-bar icons. It's still fully draggable if the player wants to move it.
   local wmFrame = Custom:Create("Frame",{
-    AnchorPoint=Vector2.new(0,0), BackgroundColor3=Theme.Surface, BackgroundTransparency=0.2,
-    BorderSizePixel=0, Position=UDim2.new(0,10,0,10),
+    AnchorPoint=Vector2.new(0,1), BackgroundColor3=Theme.Surface, BackgroundTransparency=0.2,
+    BorderSizePixel=0, Position=UDim2.new(0,10,1,-10),
     Size=UDim2.new(0,10,0,24), AutomaticSize=Enum.AutomaticSize.X,
   }, wmGui)
   ThemeBind(wmFrame,"BackgroundColor3","Surface")
@@ -1662,9 +1666,15 @@ function MIXUSFIELD_Library:CreateWindow(Config)
           local availW = math.max(cl.AbsoluteSize.X, 1)
           local bounds = TextService:GetTextSize(cl.Text, 12, Enum.Font.Gotham, Vector2.new(availW, 10000))
           local lineH  = math.max(math.ceil(bounds.Y / 12), 1)
-          cl.Size      = UDim2.new(1, -16, 0, 12 * lineH)
+          local contentH = 12 * lineH
+          cl.Size      = UDim2.new(1, -16, 0, contentH)
           cl.TextWrapped = true
-          row.Size     = UDim2.new(1, 0, 0, cl.AbsoluteSize.Y + 28)
+          -- Use the freshly computed height directly instead of reading cl.AbsoluteSize.Y,
+          -- which still holds the pre-update value at this point in the frame (AbsoluteSize
+          -- only refreshes after the engine's next layout pass). Reading it here caused the
+          -- row to stay one resize behind the real text height, letting wrapped paragraph
+          -- text bleed into the row underneath it.
+          row.Size     = UDim2.new(1, 0, 0, contentH + 28)
           UpdateSizeSection()
         end
         resize()
@@ -1888,9 +1898,12 @@ function MIXUSFIELD_Library:CreateWindow(Config)
         local function szB()
           local availW = math.max(cl.AbsoluteSize.X, 1)
           local bounds = TextService:GetTextSize(cl.Text, 12, Enum.Font.Gotham, Vector2.new(availW, 10000))
-          cl.Size      = UDim2.new(1, -80, 0, math.max(bounds.Y, 12))
+          local contentH = math.max(bounds.Y, 12)
+          cl.Size      = UDim2.new(1, -80, 0, contentH)
           cl.TextWrapped = true
-          row.Size     = UDim2.new(1, 0, 0, cl.AbsoluteSize.Y + 28)
+          -- See note in AddParagraph: use the computed height directly, not the
+          -- not-yet-refreshed cl.AbsoluteSize.Y, or a wrapped title bleeds into the row below.
+          row.Size     = UDim2.new(1, 0, 0, contentH + 28)
           UpdateSizeSection()
         end
         szB()
@@ -1917,9 +1930,12 @@ function MIXUSFIELD_Library:CreateWindow(Config)
         local function szT()
           local availW = math.max(cl.AbsoluteSize.X, 1)
           local bounds = TextService:GetTextSize(cl.Text, 12, Enum.Font.Gotham, Vector2.new(availW, 10000))
-          cl.Size      = UDim2.new(1, -60, 0, math.max(bounds.Y, 12))
+          local contentH = math.max(bounds.Y, 12)
+          cl.Size      = UDim2.new(1, -60, 0, contentH)
           cl.TextWrapped = true
-          row.Size     = UDim2.new(1, 0, 0, cl.AbsoluteSize.Y + 28)
+          -- See note in AddParagraph: use the computed height directly, not the
+          -- not-yet-refreshed cl.AbsoluteSize.Y, or a wrapped title bleeds into the row below.
+          row.Size     = UDim2.new(1, 0, 0, contentH + 28)
           UpdateSizeSection()
         end
         szT()
